@@ -27,12 +27,14 @@ class DashboardTests(unittest.TestCase):
     def test_render_contains_repository_and_status(self):
         config = {"dashboard": {"title": "Test", "subtitle": "Status"}}
         wf = dashboard.WorkflowStatus("Build", "build.yml", "completed", "failure", "https://run", "2026-09-09T10:00:00Z", "https://wf")
-        groups = [{"name": "Tools", "repositories": [{"name": "repo", "url": "https://repo", "branch": "main", "latest": "2026-09-09T10:00:00Z", "workflows": [wf]}]}]
+        groups = [{"name": "Tools", "repositories": [{"name": "repo", "url": "https://repo", "branch": "main", "latest_tag": {"name": "v1.2.3", "url": "https://tag", "sha": "abc123"}, "latest": "2026-09-09T10:00:00Z", "workflows": [wf]}]}]
         generated = dt.datetime(2026, 9, 9, 12, 0, tzinfo=dt.timezone.utc)
         out = dashboard.render_dashboard(config, groups, generated)
         self.assertIn("repo", out)
         self.assertIn("failing", out)
         self.assertIn("Problems detected", out)
+        self.assertIn("Latest tag", out)
+        self.assertIn("v1.2.3", out)
 
 if __name__ == "__main__":
     unittest.main()
