@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Show open pull request counts per repository with links to the PR list.
 - Show the dashboard refresh timestamp at the top in browser-local time.
 - Add a shortcut to manually run the dashboard workflow.
 - Refresh the dashboard automatically every four hours.
