@@ -1,0 +1,51 @@
+dashboard:
+  title: brainboxemb GitHub Actions Dashboard
+  subtitle: Current workflow status on the default branch
+  owner: brainboxemb
+  hide_repositories_without_workflows: true
+  show_disabled_workflows: false
+  stale_after_hours: 168
+
+groups:
+  - name: Tooling & libraries
+    repositories:
+      - brainboxemb.github.actions
+      - docker.scad-toolchain
+      - docker.scad-toolchain.test
+      - template.scad-project
+      - tool.scad-project
+      - tech.scad
+      - lib.scad.clamps
+      - lib.scad.hub75
+      - meta.scad-projects
+
+  - name: CAD projects
+    repositories:
+      - 2026-003-01.cad.garden-tool-cart
+      - 2026-004-01.cad.metabo-tsu-slot-insert
+      - 2026-005-01.cad.aluminium-profile-mft
+      - 2026-006-01.cad.HUB75-display-frame
+      - 2026-006-02.cad.HUB75-display-case
+      - 2026-007-01.cad.tool-board
+      - 2026-008-01.cad.bosch-table
+      - 2026-009-01.cad.HUB75-display-frame
+
+  - name: Sites & experiments
+    repositories:
+      - site.notes
+      - site.hugo-step001
+      - brainboxemb.github.io
+      - exp.2026-001.marp
+
+workflow_labels:
+  render-openscad: Render OpenSCAD
+  render_openscad_pngs: Render OpenSCAD
+  export-openscad-stls: Export STL
+  export_openscad_stls: Export STL
+  verification: Verification
+  verify: Verification
+  test: Tests
+  tests: Tests
+  build: Build
+  deploy: Deploy
+  release: Release
