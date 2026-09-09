@@ -16,6 +16,9 @@ on:
         options:
           - "true"
           - "false"
+  push:
+    paths:
+      - ".github/repository-settings/apply-all-auto-delete"
 
 permissions:
   contents: read
@@ -39,11 +42,13 @@ jobs:
       - name: Configure repositories
         env:
           DASHBOARD_ADMIN_TOKEN: ${{ secrets.DASHBOARD_ADMIN_TOKEN }}
+          TARGET_REPOSITORY: ${{ github.event_name == 'push' && 'all' || inputs.repository }}
+          DELETE_BRANCH_ON_MERGE: ${{ github.event_name == 'push' && 'true' || inputs.delete_branch_on_merge }}
         run: >-
           python src/configure_repository_settings.py
           --config dashboard.yml
-          --repository "${{ inputs.repository }}"
-          --delete-branch-on-merge "${{ inputs.delete_branch_on_merge }}"
+          --repository "$TARGET_REPOSITORY"
+          --delete-branch-on-merge "$DELETE_BRANCH_ON_MERGE"
 
       - name: Refresh hint
         run: |
