@@ -9,6 +9,7 @@ dashboard:
   repositories_without_workflows_group: Repositories without Actions
   show_disabled_workflows: false
   show_latest_tag: true
+  show_open_pull_requests: true
   stale_after_hours: 168
 
 groups:
