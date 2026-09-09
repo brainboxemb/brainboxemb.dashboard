@@ -67,6 +67,72 @@ def request_json(url: str, token: str | None) -> Any:
         body = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"GitHub API {exc.code} for {url}: {body[:300]}") from exc
 
+def request_graphql(query: str, token: str) -> dict[str, Any]:
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "User-Agent": "brainboxemb-actions-dashboard",
+        "Authorization": f"Bearer {token}",
+    }
+    payload = json.dumps({"query": query}).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.github.com/graphql",
+        data=payload,
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(
+            f"GitHub GraphQL API {exc.code}: {body[:300]}"
+        ) from exc
+
+    if result.get("errors"):
+        raise RuntimeError(
+            f"GitHub GraphQL API errors: {json.dumps(result['errors'])[:500]}"
+        )
+    return result.get("data") or {}
+
+
+def fetch_branch_auto_delete_settings(
+    entries: list[dict[str, Any]],
+    token: str | None,
+) -> dict[str, bool | None]:
+    """Fetch repository deleteBranchOnMerge settings in one GraphQL request."""
+    if not token or not entries:
+        return {}
+
+    selections = []
+    keys: list[str] = []
+    for index, entry in enumerate(entries):
+        owner = str(entry["owner"])
+        name = str(entry["name"])
+        keys.append(f"{owner}/{name}")
+        selections.append(
+            f'r{index}: repository(owner: {json.dumps(owner)}, name: {json.dumps(name)}) '
+            "{ deleteBranchOnMerge }"
+        )
+
+    data = request_graphql(
+        "query DashboardRepositorySettings {\n"
+        + "\n".join(selections)
+        + "\n}",
+        token,
+    )
+
+    result: dict[str, bool | None] = {}
+    for index, key in enumerate(keys):
+        node = data.get(f"r{index}")
+        if isinstance(node, dict) and "deleteBranchOnMerge" in node:
+            result[key] = bool(node["deleteBranchOnMerge"])
+        else:
+            result[key] = None
+    return result
+
+
 def normalize_repo_entry(entry: str | dict[str, Any], owner: str) -> dict[str, Any]:
     if isinstance(entry, str):
         return {"name": entry, "owner": owner}
@@ -238,10 +304,12 @@ def collect_repository(
     entry: dict[str, Any],
     config: dict[str, Any],
     token: str | None,
-    settings_token: str | None = None,
+    delete_branch_on_merge: bool | None = None,
 ) -> dict[str, Any]:
     owner, repo = entry["owner"], entry["name"]
-    meta = fetch_repository(owner, repo, settings_token or token)
+    meta = fetch_repository(owner, repo, token)
+    if delete_branch_on_merge is None and "delete_branch_on_merge" in meta:
+        delete_branch_on_merge = bool(meta["delete_branch_on_merge"])
     branch = entry.get("branch") or meta.get("default_branch") or "main"
     latest_tag = fetch_latest_tag(owner, repo, token)
     open_pull_requests = fetch_open_pull_requests(owner, repo, token)
@@ -316,7 +384,7 @@ def collect_repository(
         "open_pull_requests": open_pull_requests,
         "pulls_url": f"https://github.com/{owner}/{repo}/pulls",
         "branch_cleanup": cleanup_candidates,
-        "delete_branch_on_merge": bool(meta.get("delete_branch_on_merge", False)),
+        "delete_branch_on_merge": delete_branch_on_merge,
         "settings_url": f"https://github.com/{owner}/{repo}/settings",
         "workflows": results,
         "latest": latest,
@@ -343,7 +411,7 @@ def dashboard_state(config: dict[str, Any], groups: list[dict[str, Any]]) -> dic
                 ],
                 "pulls_url": repo.get("pulls_url"),
                 "branch_cleanup": repo.get("branch_cleanup", []),
-                "delete_branch_on_merge": bool(repo.get("delete_branch_on_merge", False)),
+                "delete_branch_on_merge": repo.get("delete_branch_on_merge"),
                 "settings_url": repo.get("settings_url"),
                 "workflows": [
                     {
@@ -446,7 +514,7 @@ def render_dashboard(
     cleanup_count = sum(len(r.get("branch_cleanup", [])) for g in groups for r in g["repositories"])
     auto_delete_off_count = sum(
         1 for g in groups for r in g["repositories"]
-        if not r.get("delete_branch_on_merge", False)
+        if r.get("delete_branch_on_merge") is False
     )
     unhealthy = counts["failing"] + counts["cancelled"]
     summary = [
@@ -487,10 +555,18 @@ def render_dashboard(
                 f'{pull_count} open</a>'
                 if pull_count else '<span class="empty">—</span>'
             )
-            auto_delete_enabled = bool(repo.get("delete_branch_on_merge", False))
-            auto_delete_label = "On" if auto_delete_enabled else "Off"
+            auto_delete_value = repo.get("delete_branch_on_merge")
+            if auto_delete_value is True:
+                auto_delete_label = "On"
+                auto_delete_class = "on"
+            elif auto_delete_value is False:
+                auto_delete_label = "Off"
+                auto_delete_class = "off"
+            else:
+                auto_delete_label = "Unknown"
+                auto_delete_class = "unknown"
             auto_delete_html = (
-                f'<a class="setting-badge setting-badge--{"on" if auto_delete_enabled else "off"}" '
+                f'<a class="setting-badge setting-badge--{auto_delete_class}" '
                 f'href="{esc(repo.get("settings_url", repo["url"] + "/settings"))}" '
                 f'title="Automatically delete head branches after merge: {auto_delete_label}" '
                 f'target="_blank" rel="noopener">{auto_delete_label}</a>'
@@ -649,13 +725,37 @@ def collect(
     groups = []
     repositories_without_workflows = []
 
+    configured_entries = [
+        normalize_repo_entry(raw, owner)
+        for group_cfg in config["groups"]
+        for raw in group_cfg.get("repositories", [])
+    ]
+    branch_auto_delete_settings: dict[str, bool | None] = {}
+    if settings_token:
+        try:
+            branch_auto_delete_settings = fetch_branch_auto_delete_settings(
+                configured_entries,
+                settings_token,
+            )
+        except Exception as exc:
+            print(
+                f"WARNING: Could not read PR branch auto-delete settings: {exc}",
+                file=sys.stderr,
+            )
+
     for group_cfg in config["groups"]:
         repositories = []
         for raw in group_cfg.get("repositories", []):
             entry = normalize_repo_entry(raw, owner)
             print(f"Collecting {entry['owner']}/{entry['name']}…", file=sys.stderr)
             try:
-                repo = collect_repository(entry, config, token, settings_token)
+                repo_key = f"{entry['owner']}/{entry['name']}"
+                repo = collect_repository(
+                    entry,
+                    config,
+                    token,
+                    branch_auto_delete_settings.get(repo_key),
+                )
             except Exception as exc:
                 print(f"WARNING: {entry['owner']}/{entry['name']}: {exc}", file=sys.stderr)
                 continue
