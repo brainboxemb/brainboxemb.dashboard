@@ -468,7 +468,8 @@ def render_dashboard(
     for group in groups:
         rows = []
         for repo in group["repositories"]:
-            workflow_html = "".join(render_workflow(w) for w in repo["workflows"]) or '<span class="empty">No workflows</span>'
+            workflow_items = "".join(render_workflow(w) for w in repo["workflows"]) or '<span class="empty">No workflows</span>'
+            workflow_html = f'<div class="actions-list">{workflow_items}</div>'
             problem = any(w.display_state in {"failing","cancelled"} for w in repo["workflows"])
             tag = repo.get("latest_tag")
             tag_html = (
