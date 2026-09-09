@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Read PR branch auto-delete settings through GitHub GraphQL and show `Unknown` instead of incorrectly reporting `Off` when the setting cannot be read.
 - Keep Actions cells as normal table cells so row separators align across all columns, and label the synthetic GitHub Pages workflow simply as `Pages`.
 - Skip GitHub Pages deployment when the dashboard fingerprint is unchanged; scheduled data checks still run every 15 minutes.
 - Clarify that the browser freshness check only checks for a newer deployed page, not live repository data.
