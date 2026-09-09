@@ -16,7 +16,7 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 - search and **Problems only** filtering;
 - responsive light/dark styling.
 
-Repositories without active workflows are shown as well, so the dashboard remains a complete overview of the configured repositories. The **Latest tag** column can be disabled with `dashboard.show_latest_tag: false`.
+Repositories without active workflows remain visible, but are collected in a separate **Repositories without Actions** section at the bottom. This keeps the main groups focused on repositories with workflow status while still giving a complete overview. The **Latest tag** column can be disabled with `dashboard.show_latest_tag: false`.
 
 ## Configuration
 
@@ -25,6 +25,8 @@ Edit [`dashboard.yml`](dashboard.yml). A repository can be listed by name:
 ```yaml
 - docker.scad-toolchain
 ```
+
+The bottom section for repositories without workflows can be controlled with `dashboard.separate_repositories_without_workflows` and `dashboard.repositories_without_workflows_group`.
 
 Or with overrides:
 
