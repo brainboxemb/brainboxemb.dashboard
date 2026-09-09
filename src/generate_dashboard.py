@@ -104,6 +104,20 @@ def fetch_latest_tag(owner: str, repo: str, token: str | None) -> dict[str, str]
         "url": f"https://github.com/{owner}/{repo}/tree/{urllib.parse.quote(name, safe='')}",
     }
 
+def fetch_open_pull_requests(owner: str, repo: str, token: str | None) -> list[dict[str, Any]]:
+    pulls: list[dict[str, Any]] = []
+    page = 1
+    while True:
+        batch = request_json(
+            f"{API}/repos/{owner}/{repo}/pulls?state=open&per_page=100&page={page}",
+            token,
+        )
+        pulls.extend(batch)
+        if len(batch) < 100:
+            break
+        page += 1
+    return pulls
+
 def fetch_workflows(owner: str, repo: str, token: str | None) -> list[dict[str, Any]]:
     return request_json(f"{API}/repos/{owner}/{repo}/actions/workflows?per_page=100", token).get("workflows", [])
 
@@ -117,6 +131,7 @@ def collect_repository(entry: dict[str, Any], config: dict[str, Any], token: str
     meta = fetch_repository(owner, repo, token)
     branch = entry.get("branch") or meta.get("default_branch") or "main"
     latest_tag = fetch_latest_tag(owner, repo, token)
+    open_pull_requests = fetch_open_pull_requests(owner, repo, token)
     workflows = fetch_workflows(owner, repo, token)
     show_disabled = bool(config["dashboard"].get("show_disabled_workflows", False))
     include = set(entry.get("include_workflows", []))
@@ -156,6 +171,8 @@ def collect_repository(entry: dict[str, Any], config: dict[str, Any], token: str
         "url": meta.get("html_url") or f"https://github.com/{owner}/{repo}",
         "branch": branch,
         "latest_tag": latest_tag,
+        "open_pull_requests": open_pull_requests,
+        "pulls_url": f"https://github.com/{owner}/{repo}/pulls",
         "workflows": results,
         "latest": latest,
     }
@@ -204,6 +221,7 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
     counts = status_counts(groups)
     repo_count = sum(len(g["repositories"]) for g in groups)
     workflow_count = sum(len(r["workflows"]) for g in groups for r in g["repositories"])
+    open_pr_count = sum(len(r.get("open_pull_requests", [])) for g in groups for r in g["repositories"])
     unhealthy = counts["failing"] + counts["cancelled"]
     summary = [
         ("Repositories", repo_count, "summary--neutral"),
@@ -211,10 +229,12 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
         ("Passing", counts["passing"], "summary--passing"),
         ("Failing", counts["failing"], "summary--failing" if counts["failing"] else "summary--neutral"),
         ("Running", counts["running"], "summary--running" if counts["running"] else "summary--neutral"),
+        ("Open PRs", open_pr_count, "summary--prs" if open_pr_count else "summary--neutral"),
     ]
     summary_html = "".join(f'<div class="summary {klass}"><strong>{value}</strong><span>{esc(label)}</span></div>' for label,value,klass in summary)
 
     show_latest_tag = bool(dcfg.get("show_latest_tag", True))
+    show_open_pull_requests = bool(dcfg.get("show_open_pull_requests", True))
     sections = []
     for group in groups:
         rows = []
@@ -226,20 +246,38 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
                 f'<a class="tag" href="{esc(tag["url"])}" title="{esc(tag.get("sha", ""))}" target="_blank" rel="noopener">{esc(tag["name"])}</a>'
                 if tag else '<span class="empty">No tags</span>'
             )
+            pulls = repo.get("open_pull_requests", [])
+            pull_count = len(pulls)
+            pull_titles = " | ".join(
+                f'#{pull.get("number")}: {pull.get("title", "")}' for pull in pulls[:8]
+            )
+            pr_html = (
+                f'<a class="pr-badge" href="{esc(repo.get("pulls_url", repo["url"] + "/pulls"))}" '
+                f'title="{esc(pull_titles or "Open pull requests")}" target="_blank" rel="noopener">'
+                f'{pull_count} open</a>'
+                if pull_count else '<span class="empty">—</span>'
+            )
             search_parts = [repo["name"], *(w.name for w in repo["workflows"])]
             if tag:
                 search_parts.append(tag["name"])
+            search_parts.extend(
+                f'pr {pull.get("number")} {pull.get("title", "")}' for pull in pulls
+            )
             search_text = " ".join(search_parts).lower()
             rows.append(
                 f'<tr class="repo-row{" repo--problem" if problem else ""}" data-problem="{str(problem).lower()}" data-search="{esc(search_text)}">'
                 f'<td class="repo-cell"><a href="{esc(repo["url"])}" target="_blank" rel="noopener">{esc(repo["name"])}</a><div class="repo-meta">{esc(repo["branch"])}</div></td>'
                 + (f'<td class="tag-cell">{tag_html}</td>' if show_latest_tag else '')
+                + (f'<td class="pr-cell">{pr_html}</td>' if show_open_pull_requests else '')
                 + f'<td class="actions-cell">{workflow_html}</td>'
                 f'<td class="activity-cell" title="{esc(repo["latest"] or "")}">{esc(relative_time(repo["latest"], generated_at))}</td></tr>'
             )
         sections.append(
             f'<section class="group"><h2>{esc(group["name"])}</h2><div class="table-wrap"><table>'
-            '<thead><tr><th>Repo</th>' + ('<th>Latest tag</th>' if show_latest_tag else '') + '<th>Actions</th><th>Last activity</th></tr></thead>'
+            '<thead><tr><th>Repo</th>'
+            + ('<th>Latest tag</th>' if show_latest_tag else '')
+            + ('<th>Open PRs</th>' if show_open_pull_requests else '')
+            + '<th>Actions</th><th>Last activity</th></tr></thead>'
             f'<tbody>{"".join(rows)}</tbody></table></div></section>'
         )
 
