@@ -233,9 +233,14 @@ def fetch_latest_run(owner: str, repo: str, workflow_id: int, branch: str, token
     runs = request_json(f"{API}/repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs?{query}", token).get("workflow_runs", [])
     return runs[0] if runs else None
 
-def collect_repository(entry: dict[str, Any], config: dict[str, Any], token: str | None) -> dict[str, Any]:
+def collect_repository(
+    entry: dict[str, Any],
+    config: dict[str, Any],
+    token: str | None,
+    settings_token: str | None = None,
+) -> dict[str, Any]:
     owner, repo = entry["owner"], entry["name"]
-    meta = fetch_repository(owner, repo, token)
+    meta = fetch_repository(owner, repo, settings_token or token)
     branch = entry.get("branch") or meta.get("default_branch") or "main"
     latest_tag = fetch_latest_tag(owner, repo, token)
     open_pull_requests = fetch_open_pull_requests(owner, repo, token)
@@ -270,12 +275,19 @@ def collect_repository(entry: dict[str, Any], config: dict[str, Any], token: str
             continue
         if {path, file_name, key, name} & exclude:
             continue
-        if hide_reusable:
+        if hide_reusable and path.startswith(".github/workflows/"):
             try:
                 source = fetch_workflow_source(owner, repo, path, branch, token)
                 if reusable_only_workflow(source):
                     continue
             except Exception as exc:
+                if "GitHub API 404" in str(exc):
+                    print(
+                        f"Hiding stale workflow registration for {owner}/{repo}:{path}; "
+                        f"the workflow file is no longer present on {branch}.",
+                        file=sys.stderr,
+                    )
+                    continue
                 print(
                     f"WARNING: could not inspect workflow triggers for {owner}/{repo}:{path}: {exc}",
                     file=sys.stderr,
@@ -517,7 +529,11 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
 </html>
 """
 
-def collect(config: dict[str, Any], token: str | None) -> list[dict[str, Any]]:
+def collect(
+    config: dict[str, Any],
+    token: str | None,
+    settings_token: str | None = None,
+) -> list[dict[str, Any]]:
     owner = config["dashboard"].get("owner")
     if not owner:
         raise ValueError("dashboard.owner is required")
@@ -536,7 +552,7 @@ def collect(config: dict[str, Any], token: str | None) -> list[dict[str, Any]]:
             entry = normalize_repo_entry(raw, owner)
             print(f"Collecting {entry['owner']}/{entry['name']}…", file=sys.stderr)
             try:
-                repo = collect_repository(entry, config, token)
+                repo = collect_repository(entry, config, token, settings_token)
             except Exception as exc:
                 print(f"WARNING: {entry['owner']}/{entry['name']}: {exc}", file=sys.stderr)
                 continue
@@ -568,7 +584,8 @@ def main() -> int:
     args = parser.parse_args()
     config = load_config(args.config)
     token = os.environ.get("DASHBOARD_TOKEN") or os.environ.get("GITHUB_TOKEN")
-    groups = collect(config, token)
+    settings_token = os.environ.get("DASHBOARD_ADMIN_TOKEN")
+    groups = collect(config, token, settings_token)
     generated_at = dt.datetime.now(dt.timezone.utc)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(render_dashboard(config, groups, generated_at), encoding="utf-8")
