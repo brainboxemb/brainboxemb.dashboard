@@ -27,7 +27,7 @@ class DashboardTests(unittest.TestCase):
     def test_render_contains_repository_and_status(self):
         config = {"dashboard": {"title": "Test", "subtitle": "Status", "owner": "brainboxemb", "repository": "brainboxemb.dashboard", "refresh_workflow": "deploy-dashboard.yml"}}
         wf = dashboard.WorkflowStatus("Build", "build.yml", "completed", "failure", "https://run", "2026-09-09T10:00:00Z", "https://wf")
-        groups = [{"name": "Tools", "repositories": [{"name": "repo", "url": "https://repo", "branch": "main", "latest_tag": {"name": "v1.2.3", "url": "https://tag", "sha": "abc123"}, "latest": "2026-09-09T10:00:00Z", "workflows": [wf]}]}]
+        groups = [{"name": "Tools", "repositories": [{"name": "repo", "url": "https://repo", "branch": "main", "latest_tag": {"name": "v1.2.3", "url": "https://tag", "sha": "abc123"}, "open_pull_requests": [{"number": 42, "title": "Improve dashboard"}], "pulls_url": "https://repo/pulls", "latest": "2026-09-09T10:00:00Z", "workflows": [wf]}]}]
         generated = dt.datetime(2026, 9, 9, 12, 0, tzinfo=dt.timezone.utc)
         out = dashboard.render_dashboard(config, groups, generated)
         self.assertIn("repo", out)
@@ -38,6 +38,9 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("Last refreshed", out)
         self.assertIn("Refresh dashboard", out)
         self.assertIn("actions/workflows/deploy-dashboard.yml", out)
+        self.assertIn("Open PRs", out)
+        self.assertIn("1 open", out)
+        self.assertIn("#42: Improve dashboard", out)
 
 if __name__ == "__main__":
     unittest.main()
