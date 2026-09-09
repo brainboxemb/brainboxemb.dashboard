@@ -43,6 +43,26 @@ class DashboardTests(unittest.TestCase):
         source = """name: Build\non:\n  push:\n    branches: [main]\n"""
         self.assertFalse(dashboard.reusable_only_workflow(source))
 
+    def test_branch_auto_delete_graphql_mapping(self):
+        original = dashboard.request_graphql
+        dashboard.request_graphql = lambda query, token: {
+            "r0": {"deleteBranchOnMerge": True},
+            "r1": {"deleteBranchOnMerge": False},
+        }
+        try:
+            result = dashboard.fetch_branch_auto_delete_settings(
+                [
+                    {"owner": "brainboxemb", "name": "one"},
+                    {"owner": "brainboxemb", "name": "two"},
+                ],
+                "token",
+            )
+        finally:
+            dashboard.request_graphql = original
+
+        self.assertEqual(result["brainboxemb/one"], True)
+        self.assertEqual(result["brainboxemb/two"], False)
+
     def test_branch_cleanup_candidates(self):
         branches = [{"name": "main"}, {"name": "feature/merged"}, {"name": "feature/closed"}]
         pulls = [
@@ -128,6 +148,39 @@ class DashboardTests(unittest.TestCase):
         wf.conclusion = "failure"
         changed = dashboard.dashboard_content_hash(config, groups)
         self.assertNotEqual(first, changed)
+
+    def test_unknown_branch_auto_delete_is_not_counted_as_off(self):
+        config = {
+            "dashboard": {
+                "title": "Test",
+                "subtitle": "Status",
+                "owner": "brainboxemb",
+            }
+        }
+        groups = [{
+            "name": "Tools",
+            "repositories": [{
+                "name": "repo",
+                "url": "https://repo",
+                "branch": "main",
+                "latest_tag": None,
+                "open_pull_requests": [],
+                "pulls_url": "https://repo/pulls",
+                "delete_branch_on_merge": None,
+                "settings_url": "https://repo/settings",
+                "branch_cleanup": [],
+                "latest": None,
+                "workflows": [],
+            }],
+        }]
+        out = dashboard.render_dashboard(
+            config,
+            groups,
+            dt.datetime(2026, 9, 9, 12, 0, tzinfo=dt.timezone.utc),
+            "abc",
+        )
+        self.assertIn(">Unknown</a>", out)
+        self.assertIn("<strong>0</strong><span>Auto-delete off</span>", out)
 
     def test_render_contains_repository_and_status(self):
         config = {"dashboard": {"title": "Test", "subtitle": "Status", "owner": "brainboxemb", "repository": "brainboxemb.dashboard", "refresh_workflow": "deploy-dashboard.yml"}}
