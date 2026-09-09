@@ -16,7 +16,7 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 - search and **Problems only** filtering;
 - responsive light/dark styling.
 
-Repositories with no active workflows are hidden by default. The **Latest tag** column can be disabled with `dashboard.show_latest_tag: false`.
+Repositories without active workflows are shown as well, so the dashboard remains a complete overview of the configured repositories. The **Latest tag** column can be disabled with `dashboard.show_latest_tag: false`.
 
 ## Configuration
 
