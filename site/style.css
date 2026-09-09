@@ -48,8 +48,10 @@ a:hover { text-decoration: underline; }
 .hero-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 h1 { font-size: 30px; line-height: 1.2; margin: 0 0 6px; }
 .hero p { margin: 0; color: var(--muted); }
-.refresh-meta { margin-top: 7px; color: var(--muted); font-size: 12px; }
-.refresh-meta time { color: var(--text); font-weight: 600; }
+.refresh-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-top: 9px; color: var(--muted); font-size: 12px; }
+.refresh-meta__item { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; white-space: nowrap; }
+.refresh-meta__label { color: var(--muted); }
+.refresh-meta__value { color: var(--text); font-weight: 600; }
 .refresh-button { display: inline-flex; align-items: center; min-height: 34px; padding: 6px 11px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-weight: 600; box-shadow: var(--shadow); }
 .refresh-button:hover { text-decoration: none; border-color: var(--link); }
 .health { border: 1px solid var(--border); border-radius: 999px; padding: 7px 12px; font-weight: 600; white-space: nowrap; }
