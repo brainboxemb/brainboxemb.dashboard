@@ -111,6 +111,8 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("Auto-delete off", out)
         self.assertIn(">Off</a>", out)
         self.assertIn("Repository settings", out)
+        self.assertIn("data-relative-time", out)
+        self.assertIn('datetime="2026-09-09T10:00:00Z"', out)
 
 if __name__ == "__main__":
     unittest.main()
