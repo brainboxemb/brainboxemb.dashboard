@@ -118,6 +118,72 @@ def fetch_open_pull_requests(owner: str, repo: str, token: str | None) -> list[d
         page += 1
     return pulls
 
+def fetch_branches(owner: str, repo: str, token: str | None) -> list[dict[str, Any]]:
+    branches: list[dict[str, Any]] = []
+    page = 1
+    while True:
+        batch = request_json(
+            f"{API}/repos/{owner}/{repo}/branches?per_page=100&page={page}",
+            token,
+        )
+        branches.extend(batch)
+        if len(batch) < 100:
+            break
+        page += 1
+    return branches
+
+def fetch_closed_pull_requests(owner: str, repo: str, token: str | None) -> list[dict[str, Any]]:
+    pulls: list[dict[str, Any]] = []
+    page = 1
+    while True:
+        batch = request_json(
+            f"{API}/repos/{owner}/{repo}/pulls?state=closed&per_page=100&page={page}",
+            token,
+        )
+        pulls.extend(batch)
+        if len(batch) < 100:
+            break
+        page += 1
+    return pulls
+
+def branch_cleanup_candidates(
+    owner: str,
+    repo: str,
+    default_branch: str,
+    branches: list[dict[str, Any]],
+    closed_pulls: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    existing = {branch.get("name") for branch in branches if branch.get("name")}
+    existing.discard(default_branch)
+    full_name = f"{owner}/{repo}"
+    candidates: dict[str, dict[str, Any]] = {}
+
+    for pull in closed_pulls:
+        head = pull.get("head") or {}
+        head_repo = (head.get("repo") or {}).get("full_name")
+        branch = head.get("ref")
+        if not branch or branch not in existing or head_repo != full_name:
+            continue
+
+        candidate = {
+            "branch": branch,
+            "branch_url": f"https://github.com/{owner}/{repo}/tree/{urllib.parse.quote(branch, safe='')}",
+            "pr_number": pull.get("number"),
+            "pr_title": pull.get("title") or "",
+            "pr_url": pull.get("html_url") or f"https://github.com/{owner}/{repo}/pull/{pull.get('number')}",
+            "state": "merged" if pull.get("merged_at") else "closed",
+            "closed_at": pull.get("closed_at"),
+            "merged_at": pull.get("merged_at"),
+        }
+
+        previous = candidates.get(branch)
+        previous_closed = (previous or {}).get("closed_at") or ""
+        current_closed = candidate.get("closed_at") or ""
+        if previous is None or current_closed > previous_closed:
+            candidates[branch] = candidate
+
+    return sorted(candidates.values(), key=lambda item: item["branch"].lower())
+
 def fetch_workflow_source(owner: str, repo: str, path: str, branch: str, token: str | None) -> str:
     quoted_path = urllib.parse.quote(path, safe="/")
     query = urllib.parse.urlencode({"ref": branch})
@@ -173,6 +239,14 @@ def collect_repository(entry: dict[str, Any], config: dict[str, Any], token: str
     branch = entry.get("branch") or meta.get("default_branch") or "main"
     latest_tag = fetch_latest_tag(owner, repo, token)
     open_pull_requests = fetch_open_pull_requests(owner, repo, token)
+    show_branch_cleanup = bool(config["dashboard"].get("show_branch_cleanup", True))
+    cleanup_candidates: list[dict[str, Any]] = []
+    if show_branch_cleanup:
+        branches = fetch_branches(owner, repo, token)
+        closed_pull_requests = fetch_closed_pull_requests(owner, repo, token)
+        cleanup_candidates = branch_cleanup_candidates(
+            owner, repo, branch, branches, closed_pull_requests
+        )
     workflows = fetch_workflows(owner, repo, token)
     show_disabled = bool(config["dashboard"].get("show_disabled_workflows", False))
     hide_reusable = bool(entry.get(
@@ -228,6 +302,7 @@ def collect_repository(entry: dict[str, Any], config: dict[str, Any], token: str
         "latest_tag": latest_tag,
         "open_pull_requests": open_pull_requests,
         "pulls_url": f"https://github.com/{owner}/{repo}/pulls",
+        "branch_cleanup": cleanup_candidates,
         "workflows": results,
         "latest": latest,
     }
@@ -277,6 +352,7 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
     repo_count = sum(len(g["repositories"]) for g in groups)
     workflow_count = sum(len(r["workflows"]) for g in groups for r in g["repositories"])
     open_pr_count = sum(len(r.get("open_pull_requests", [])) for g in groups for r in g["repositories"])
+    cleanup_count = sum(len(r.get("branch_cleanup", [])) for g in groups for r in g["repositories"])
     unhealthy = counts["failing"] + counts["cancelled"]
     summary = [
         ("Repositories", repo_count, "summary--neutral"),
@@ -285,6 +361,7 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
         ("Failing", counts["failing"], "summary--failing" if counts["failing"] else "summary--neutral"),
         ("Running", counts["running"], "summary--running" if counts["running"] else "summary--neutral"),
         ("Open PRs", open_pr_count, "summary--prs" if open_pr_count else "summary--neutral"),
+        ("Branch cleanup", cleanup_count, "summary--cleanup" if cleanup_count else "summary--neutral"),
     ]
     summary_html = "".join(f'<div class="summary {klass}"><strong>{value}</strong><span>{esc(label)}</span></div>' for label,value,klass in summary)
 
@@ -336,6 +413,41 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
             f'<tbody>{"".join(rows)}</tbody></table></div></section>'
         )
 
+    cleanup_rows = []
+    for group in groups:
+        for repo in group["repositories"]:
+            for candidate in repo.get("branch_cleanup", []):
+                state = candidate.get("state", "closed")
+                state_label = "merged" if state == "merged" else "closed, not merged"
+                when = candidate.get("merged_at") or candidate.get("closed_at")
+                search_text = " ".join([
+                    repo["name"],
+                    candidate.get("branch", ""),
+                    f'pr {candidate.get("pr_number", "")}',
+                    candidate.get("pr_title", ""),
+                    state_label,
+                ]).lower()
+                cleanup_rows.append(
+                    f'<tr class="repo-row cleanup-row" data-problem="false" data-search="{esc(search_text)}">'
+                    f'<td class="repo-cell"><a href="{esc(repo["url"])}" target="_blank" rel="noopener">{esc(repo["name"])}</a></td>'
+                    f'<td><a class="branch-link" href="{esc(candidate["branch_url"])}" target="_blank" rel="noopener">{esc(candidate["branch"])}</a></td>'
+                    f'<td><a href="{esc(candidate["pr_url"])}" target="_blank" rel="noopener">#{esc(candidate.get("pr_number", ""))} {esc(candidate.get("pr_title", ""))}</a></td>'
+                    f'<td><span class="cleanup-state cleanup-state--{esc(state)}">{esc(state_label)}</span></td>'
+                    f'<td class="activity-cell">{esc(relative_time(when, generated_at))}</td>'
+                    f'</tr>'
+                )
+
+    cleanup_section_html = ""
+    if cleanup_rows:
+        cleanup_section_html = (
+            '<section class="group cleanup-group"><h2>Branch cleanup</h2>'
+            '<p class="group-note">Branches that still exist after their pull request was closed. '
+            'Merged branches are strong cleanup candidates; closed-but-unmerged branches should be reviewed before deletion.</p>'
+            '<div class="table-wrap"><table>'
+            '<thead><tr><th>Repo</th><th>Branch</th><th>Pull request</th><th>Status</th><th>Closed</th></tr></thead>'
+            f'<tbody>{"".join(cleanup_rows)}</tbody></table></div></section>'
+        )
+
     generated_iso = generated_at.replace(microsecond=0).isoformat().replace("+00:00","Z")
     dashboard_repo = dcfg.get("repository")
     refresh_workflow = dcfg.get("refresh_workflow", "deploy-dashboard.yml")
@@ -372,7 +484,7 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
     <label class="search"><span>Search</span><input id="search" type="search" placeholder="Repository or workflow…"></label>
     <label class="toggle"><input id="problems-only" type="checkbox"><span>Problems only</span></label>
   </section>
-  <div id="groups">{"".join(sections)}</div>
+  <div id="groups">{"".join(sections)}{cleanup_section_html}</div>
   <footer>Generated <time class="local-time" data-local-time datetime="{generated_iso}">{generated_iso}</time> · Static GitHub Pages dashboard</footer>
 </main>
 <script src="app.js"></script>
