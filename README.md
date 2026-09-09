@@ -15,7 +15,7 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 - open pull request count per repository, linked to the repository's PR list;
 - branch cleanup candidates for closed pull requests whose source branch still exists;
 - branch auto-delete setting (`delete_branch_on_merge`) per repository;
-- last activity per repository;
+- last activity per repository; relative activity timestamps update in the browser without rebuilding the static page;
 - summary counts for passing, failing, and running workflows;
 - search and **Problems only** filtering;
 - responsive light/dark styling;
