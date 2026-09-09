@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Clarify that the browser freshness check only checks for a newer deployed page, not live repository data.
 - Rebuild the dashboard every 15 minutes and show a live Last checked timestamp in the browser.
 - Auto-check every minute for a newly deployed dashboard and cache-bust static assets.
 - Update relative activity timestamps live in the browser on the static dashboard.
