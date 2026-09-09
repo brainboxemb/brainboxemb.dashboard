@@ -28,7 +28,8 @@ class DashboardTests(unittest.TestCase):
         config = {"dashboard": {"title": "Test", "subtitle": "Status"}}
         wf = dashboard.WorkflowStatus("Build", "build.yml", "completed", "failure", "https://run", "2026-09-09T10:00:00Z", "https://wf")
         groups = [{"name": "Tools", "repositories": [{"name": "repo", "url": "https://repo", "branch": "main", "latest": "2026-09-09T10:00:00Z", "workflows": [wf]}]}]
-        out = dashboard.render_dashboard(config, groups, now)
+        generated = dt.datetime(2026, 9, 9, 12, 0, tzinfo=dt.timezone.utc)
+        out = dashboard.render_dashboard(config, groups, generated)
         self.assertIn("repo", out)
         self.assertIn("failing", out)
         self.assertIn("Problems detected", out)
