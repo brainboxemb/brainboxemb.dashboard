@@ -484,7 +484,7 @@ def relative_time(value: str | None, now: dt.datetime | None = None) -> str:
     if hours < 24:
         return f"{hours}h ago"
     days = hours // 24
-    return f"{days}d ago" if days < 30 else parsed.strftime("%Y-%m-%d")
+    return f"{days}d ago" if days <= 99 else ">99d ago"
 
 def esc(value: Any) -> str:
     return html.escape(str(value), quote=True)
