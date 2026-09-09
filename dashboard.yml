@@ -2,7 +2,7 @@ dashboard:
   title: brainboxemb GitHub Actions Dashboard
   subtitle: Current workflow status on the default branch
   owner: brainboxemb
-  hide_repositories_without_workflows: true
+  hide_repositories_without_workflows: false
   show_disabled_workflows: false
   show_latest_tag: true
   stale_after_hours: 168
