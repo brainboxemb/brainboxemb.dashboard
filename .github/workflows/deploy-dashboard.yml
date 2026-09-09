@@ -1,5 +1,7 @@
 name: Deploy
 
+# Scheduled runs still collect data; Pages deploys only when the dashboard fingerprint changes.
+
 on:
   workflow_dispatch:
   schedule:
