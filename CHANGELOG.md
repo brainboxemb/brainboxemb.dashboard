@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Auto-check every minute for a newly deployed dashboard and cache-bust static assets.
 - Update relative activity timestamps live in the browser on the static dashboard.
 - Show and manage the automatic deletion of merged pull-request branches per repository.
 - Show branch cleanup candidates when closed pull request branches still exist.
