@@ -57,7 +57,7 @@
     const now = new Date();
     lastCheckedElement.dateTime = now.toISOString();
     lastCheckedElement.textContent = localDateTimeFormatter.format(now);
-    lastCheckedElement.title = now.toISOString();
+    lastCheckedElement.title = `Checked ${localDateTimeFormatter.format(now)} whether a newer deployed dashboard page is available; repository data was not queried.`;
   }
 
   async function checkForDashboardUpdate(showFeedback = false) {
@@ -89,7 +89,7 @@
       if (showFeedback && checkButton) {
         checkButton.textContent = 'Up to date';
         window.setTimeout(() => {
-          checkButton.textContent = 'Check now';
+          checkButton.textContent = 'Check for update';
           checkButton.disabled = false;
         }, 1800);
       }
@@ -98,7 +98,7 @@
       if (showFeedback && checkButton) {
         checkButton.textContent = 'Check failed';
         window.setTimeout(() => {
-          checkButton.textContent = 'Check now';
+          checkButton.textContent = 'Check for update';
           checkButton.disabled = false;
         }, 2200);
       }
