@@ -118,6 +118,11 @@ class DashboardTests(unittest.TestCase):
         now = dt.datetime(2026, 9, 9, 12, 0, tzinfo=dt.timezone.utc)
         self.assertEqual(dashboard.relative_time("2026-09-09T10:00:00Z", now), "2h ago")
 
+    def test_relative_time_caps_at_99_days(self):
+        now = dt.datetime(2026, 9, 9, 12, 0, tzinfo=dt.timezone.utc)
+        self.assertEqual(dashboard.relative_time("2026-07-17T12:00:00Z", now), "54d ago")
+        self.assertEqual(dashboard.relative_time("2026-05-01T12:00:00Z", now), ">99d ago")
+
     def test_dashboard_content_hash_is_stable_and_tracks_visible_state(self):
         config = {"dashboard": {"title": "Test"}, "groups": []}
         wf = dashboard.WorkflowStatus(
