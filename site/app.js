@@ -49,7 +49,16 @@
 
   const generatedElement = document.querySelector('time[data-dashboard-generated]');
   const checkButton = document.querySelector('#check-dashboard');
+  const lastCheckedElement = document.querySelector('#last-checked');
   const currentGeneratedAt = generatedElement ? new Date(generatedElement.dateTime).getTime() : 0;
+
+  function markChecked() {
+    if (!lastCheckedElement) return;
+    const now = new Date();
+    lastCheckedElement.dateTime = now.toISOString();
+    lastCheckedElement.textContent = localDateTimeFormatter.format(now);
+    lastCheckedElement.title = now.toISOString();
+  }
 
   async function checkForDashboardUpdate(showFeedback = false) {
     if (showFeedback && checkButton) {
@@ -63,6 +72,7 @@
 
       const response = await fetch(checkUrl, { cache: 'no-store' });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      markChecked();
 
       const source = await response.text();
       const documentCopy = new DOMParser().parseFromString(source, 'text/html');
@@ -84,6 +94,7 @@
         }, 1800);
       }
     } catch (error) {
+      markChecked();
       if (showFeedback && checkButton) {
         checkButton.textContent = 'Check failed';
         window.setTimeout(() => {
@@ -93,6 +104,8 @@
       }
     }
   }
+
+  markChecked();
 
   if (checkButton) {
     checkButton.addEventListener('click', () => checkForDashboardUpdate(true));
