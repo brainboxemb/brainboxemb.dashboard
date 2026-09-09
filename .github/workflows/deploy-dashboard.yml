@@ -46,6 +46,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           DASHBOARD_TOKEN: ${{ secrets.DASHBOARD_TOKEN }}
+          DASHBOARD_ADMIN_TOKEN: ${{ secrets.DASHBOARD_ADMIN_TOKEN }}
         run: python src/generate_dashboard.py --config dashboard.yml --output site/index.html
 
       - name: Configure Pages
