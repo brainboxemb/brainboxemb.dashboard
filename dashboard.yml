@@ -3,6 +3,8 @@ dashboard:
   subtitle: Current workflow status on the default branch
   owner: brainboxemb
   hide_repositories_without_workflows: false
+  separate_repositories_without_workflows: true
+  repositories_without_workflows_group: Repositories without Actions
   show_disabled_workflows: false
   show_latest_tag: true
   stale_after_hours: 168
