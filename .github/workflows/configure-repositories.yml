@@ -1,0 +1,51 @@
+name: Configure repository settings
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: "Repository name, owner/name, or 'all'"
+        required: true
+        default: "all"
+        type: string
+      delete_branch_on_merge:
+        description: "Automatically delete head branches after PR merge"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+permissions:
+  contents: read
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Configure repositories
+        env:
+          DASHBOARD_ADMIN_TOKEN: ${{ secrets.DASHBOARD_ADMIN_TOKEN }}
+        run: >-
+          python src/configure_repository_settings.py
+          --config dashboard.yml
+          --repository "${{ inputs.repository }}"
+          --delete-branch-on-merge "${{ inputs.delete_branch_on_merge }}"
+
+      - name: Refresh hint
+        run: |
+          echo "Repository settings updated."
+          echo "Run the Deploy dashboard workflow to refresh the displayed status immediately."
