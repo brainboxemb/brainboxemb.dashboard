@@ -113,6 +113,12 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("Repository settings", out)
         self.assertIn("data-relative-time", out)
         self.assertIn('datetime="2026-09-09T10:00:00Z"', out)
+        self.assertIn("data-dashboard-generated", out)
+        self.assertIn("auto-check every minute", out)
+        self.assertIn("Check now", out)
+        self.assertIn("Rebuild dashboard", out)
+        self.assertIn("app.js?v=", out)
+        self.assertIn("style.css?v=", out)
 
 if __name__ == "__main__":
     unittest.main()
