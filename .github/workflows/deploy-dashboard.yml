@@ -28,25 +28,31 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       changed: ${{ steps.changes.outputs.changed }}
     steps:
       - name: Checkout
+        timeout-minutes: 2
         uses: actions/checkout@v4
 
       - name: Set up Python
+        timeout-minutes: 2
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
 
       - name: Install dependencies
+        timeout-minutes: 2
         run: pip install -r requirements.txt
 
       - name: Run tests
+        timeout-minutes: 2
         run: python -m unittest discover -s tests -v
 
       - name: Generate dashboard
+        timeout-minutes: 5
         env:
           GITHUB_TOKEN: ${{ github.token }}
           DASHBOARD_TOKEN: ${{ secrets.DASHBOARD_TOKEN }}
@@ -58,6 +64,7 @@ jobs:
           --hash-output .dashboard-content-hash
 
       - name: Compare with deployed dashboard
+        timeout-minutes: 2
         id: changes
         shell: bash
         env:
@@ -82,10 +89,12 @@ jobs:
           fi
 
       - name: Configure Pages
+        timeout-minutes: 2
         if: steps.changes.outputs.changed == 'true'
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
+        timeout-minutes: 2
         if: steps.changes.outputs.changed == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
@@ -96,9 +105,11 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: build
     if: needs.build.outputs.changed == 'true'
     steps:
       - name: Deploy to GitHub Pages
+        timeout-minutes: 2
         id: deployment
         uses: actions/deploy-pages@v4
