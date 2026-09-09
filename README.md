@@ -10,12 +10,13 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 - active GitHub Actions workflows discovered automatically;
 - status of the most recent run on each repository's default branch;
 - direct links to repositories and workflow runs;
+- latest Git tag per repository, linked to the tagged tree;
 - last activity per repository;
 - summary counts for passing, failing, and running workflows;
 - search and **Problems only** filtering;
 - responsive light/dark styling.
 
-Repositories with no active workflows are hidden by default.
+Repositories with no active workflows are hidden by default. The **Latest tag** column can be disabled with `dashboard.show_latest_tag: false`.
 
 ## Configuration
 
