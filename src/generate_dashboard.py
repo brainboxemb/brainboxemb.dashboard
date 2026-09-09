@@ -518,7 +518,10 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
     <div class="hero-copy">
       <h1>{esc(dcfg.get("title","GitHub Actions Dashboard"))}</h1>
       <p>{esc(dcfg.get("subtitle",""))}</p>
-      <div class="refresh-meta">Last refreshed <time class="local-time" data-local-time data-dashboard-generated datetime="{generated_iso}">{generated_iso}</time> · auto-check every minute</div>
+      <div class="refresh-meta">
+        Data generated <time class="local-time" data-local-time data-dashboard-generated datetime="{generated_iso}">{generated_iso}</time>
+        · Last checked <time id="last-checked">not yet</time>
+      </div>
     </div>
     <div class="hero-actions">
       <div class="health {health_class}">{health}</div>
