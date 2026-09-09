@@ -20,7 +20,7 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 - search and **Problems only** filtering;
 - responsive light/dark styling;
 - data-generation timestamp shown at the top in the viewer's local time;
-- visible **Last checked** timestamp updated on every automatic or manual browser check;
+- visible **Page version checked** timestamp updated when the browser checks whether a newer deployed dashboard page exists;
 - checks every minute for a newly deployed dashboard and reloads automatically when one is available;
 - manual refresh shortcut to the GitHub Actions workflow.
 
@@ -59,7 +59,7 @@ After the initial commit:
 2. Set **Source** to **GitHub Actions**.
 3. Open **Actions → Update Actions dashboard** and run it once with **Run workflow**.
 
-The scheduled workflow rebuilds the dashboard every 15 minutes. The browser checks every minute for a newer deployed copy, updates the visible **Last checked** value, and reloads automatically when a newer copy appears. **Check now** performs that check immediately. **Rebuild dashboard** opens the workflow page; when signed in to GitHub, choose **Run workflow** there for an immediate data rebuild. A static GitHub Pages page cannot securely dispatch a workflow directly without exposing credentials or adding a backend.
+The scheduled workflow rebuilds the dashboard every 15 minutes. The browser checks every minute for a newer deployed copy, updates the visible **Page version checked** value, and reloads automatically when a newer copy appears. **Check for update** performs that page-version check immediately; it does not query the monitored repositories. **Rebuild dashboard** opens the workflow page; when signed in to GitHub, choose **Run workflow** there for an immediate data rebuild. A static GitHub Pages page cannot securely dispatch a workflow directly without exposing credentials or adding a backend.
 
 ## Repository access
 
