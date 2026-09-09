@@ -11,6 +11,7 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 - status of the most recent run on each repository's default branch;
 - direct links to repositories and workflow runs;
 - latest Git tag per repository, linked to the tagged tree;
+- open pull request count per repository, linked to the repository's PR list;
 - last activity per repository;
 - summary counts for passing, failing, and running workflows;
 - search and **Problems only** filtering;
@@ -18,7 +19,7 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 - refresh timestamp shown at the top in the viewer's local time;
 - manual refresh shortcut to the GitHub Actions workflow.
 
-Repositories without active workflows remain visible, but are collected in a separate **Repositories without Actions** section at the bottom. This keeps the main groups focused on repositories with workflow status while still giving a complete overview. The **Latest tag** column can be disabled with `dashboard.show_latest_tag: false`.
+Repositories without active workflows remain visible, but are collected in a separate **Repositories without Actions** section at the bottom. This keeps the main groups focused on repositories with workflow status while still giving a complete overview. The **Latest tag** column can be disabled with `dashboard.show_latest_tag: false`, and the **Open PRs** column with `dashboard.show_open_pull_requests: false`.
 
 ## Configuration
 
