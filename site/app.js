@@ -4,16 +4,48 @@
   const rows = [...document.querySelectorAll('.repo-row')];
   const groups = [...document.querySelectorAll('.group')];
 
+  const localDateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+
   for (const element of document.querySelectorAll('time[data-local-time]')) {
     const date = new Date(element.dateTime);
     if (!Number.isNaN(date.getTime())) {
-      element.textContent = new Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      }).format(date);
+      element.textContent = localDateTimeFormatter.format(date);
       element.title = element.dateTime;
     }
   }
+
+  function relativeLabel(date, now = new Date()) {
+    const seconds = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
+    if (seconds < 60) return 'just now';
+
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days}d ago`;
+
+    return localDateTimeFormatter.format(date);
+  }
+
+  function updateRelativeTimes() {
+    const now = new Date();
+    for (const element of document.querySelectorAll('time[data-relative-time]')) {
+      const date = new Date(element.dateTime);
+      if (!Number.isNaN(date.getTime())) {
+        element.textContent = relativeLabel(date, now);
+        element.title = localDateTimeFormatter.format(date);
+      }
+    }
+  }
+
+  updateRelativeTimes();
+  window.setInterval(updateRelativeTimes, 30_000);
 
   function applyFilters() {
     const term = (search.value || '').trim().toLowerCase();
