@@ -47,6 +47,62 @@
   updateRelativeTimes();
   window.setInterval(updateRelativeTimes, 30_000);
 
+  const generatedElement = document.querySelector('time[data-dashboard-generated]');
+  const checkButton = document.querySelector('#check-dashboard');
+  const currentGeneratedAt = generatedElement ? new Date(generatedElement.dateTime).getTime() : 0;
+
+  async function checkForDashboardUpdate(showFeedback = false) {
+    if (showFeedback && checkButton) {
+      checkButton.disabled = true;
+      checkButton.textContent = 'Checking…';
+    }
+
+    try {
+      const checkUrl = new URL(window.location.href);
+      checkUrl.searchParams.set('_check', Date.now().toString());
+
+      const response = await fetch(checkUrl, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const source = await response.text();
+      const documentCopy = new DOMParser().parseFromString(source, 'text/html');
+      const candidate = documentCopy.querySelector('time[data-dashboard-generated]');
+      const candidateTime = candidate ? new Date(candidate.dateTime).getTime() : 0;
+
+      if (candidateTime > currentGeneratedAt) {
+        const reloadUrl = new URL(window.location.href);
+        reloadUrl.searchParams.set('_v', candidateTime.toString());
+        window.location.replace(reloadUrl.toString());
+        return;
+      }
+
+      if (showFeedback && checkButton) {
+        checkButton.textContent = 'Up to date';
+        window.setTimeout(() => {
+          checkButton.textContent = 'Check now';
+          checkButton.disabled = false;
+        }, 1800);
+      }
+    } catch (error) {
+      if (showFeedback && checkButton) {
+        checkButton.textContent = 'Check failed';
+        window.setTimeout(() => {
+          checkButton.textContent = 'Check now';
+          checkButton.disabled = false;
+        }, 2200);
+      }
+    }
+  }
+
+  if (checkButton) {
+    checkButton.addEventListener('click', () => checkForDashboardUpdate(true));
+  }
+
+  window.setInterval(() => checkForDashboardUpdate(false), 60_000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkForDashboardUpdate(false);
+  });
+
   function applyFilters() {
     const term = (search.value || '').trim().toLowerCase();
     const problems = problemsOnly.checked;
