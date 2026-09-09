@@ -59,7 +59,7 @@ After the initial commit:
 2. Set **Source** to **GitHub Actions**.
 3. Open **Actions → Update Actions dashboard** and run it once with **Run workflow**.
 
-The scheduled workflow rebuilds the dashboard every 15 minutes. The browser checks every minute for a newer deployed copy, updates the visible **Page version checked** value, and reloads automatically when a newer copy appears. **Check for update** performs that page-version check immediately; it does not query the monitored repositories. **Rebuild dashboard** opens the workflow page; when signed in to GitHub, choose **Run workflow** there for an immediate data rebuild. A static GitHub Pages page cannot securely dispatch a workflow directly without exposing credentials or adding a backend.
+The scheduled workflow checks GitHub every 15 minutes. After collecting the data it computes a content fingerprint over the dashboard-visible repository state, configuration, generator, and static assets. GitHub Pages is uploaded and deployed only when that fingerprint differs from the currently deployed page. The browser checks every minute for a newer deployed copy, updates the visible **Page version checked** value, and reloads automatically when a newer copy appears. **Check for update** performs that page-version check immediately; it does not query the monitored repositories. **Rebuild dashboard** opens the workflow page; when signed in to GitHub, choose **Run workflow** there for an immediate data rebuild. A static GitHub Pages page cannot securely dispatch a workflow directly without exposing credentials or adding a backend.
 
 ## Repository access
 
@@ -136,3 +136,16 @@ delete_branch_on_merge: true
 ```
 
 The settings workflow changes only the `delete_branch_on_merge` property.
+
+
+## Change-aware Pages deployment
+
+Scheduled checks intentionally separate **data collection** from **Pages deployment**:
+
+1. collect repository/workflow/PR/branch settings data;
+2. calculate a SHA-256 fingerprint of dashboard-visible state and relevant renderer/static files;
+3. read the fingerprint embedded in the currently deployed page;
+4. skip `configure-pages`, artifact upload, and `deploy-pages` when both fingerprints are equal;
+5. deploy a new Pages version only when dashboard-visible content changed.
+
+The generation timestamp is deliberately excluded from the fingerprint, so time passing alone never causes a deployment.
