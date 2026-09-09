@@ -1,4 +1,4 @@
-name: Update Actions dashboard
+name: Deploy
 
 on:
   workflow_dispatch:
