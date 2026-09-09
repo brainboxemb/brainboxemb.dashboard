@@ -520,12 +520,12 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
       <p>{esc(dcfg.get("subtitle",""))}</p>
       <div class="refresh-meta">
         Data generated <time class="local-time" data-local-time data-dashboard-generated datetime="{generated_iso}">{generated_iso}</time>
-        · Last checked <time id="last-checked">not yet</time>
+        · Page version checked <time id="last-checked" title="Checks only whether a newer deployed dashboard page is available; it does not query GitHub repositories.">not yet</time>
       </div>
     </div>
     <div class="hero-actions">
       <div class="health {health_class}">{health}</div>
-      <button class="refresh-button" id="check-dashboard" type="button" title="Check whether a newer deployed dashboard is available">Check now</button>
+      <button class="refresh-button" id="check-dashboard" type="button" title="Check whether a newer deployed dashboard is available">Check for update</button>
       {f'<a class="refresh-button" href="{esc(refresh_url)}" target="_blank" rel="noopener" title="Open the GitHub Actions workflow and choose Run workflow">Rebuild dashboard ↗</a>' if refresh_url else ''}
       {f'<a class="refresh-button" href="{esc(settings_workflow_url)}" target="_blank" rel="noopener" title="Open the repository settings workflow">Repository settings ↗</a>' if settings_workflow_url else ''}
     </div>
