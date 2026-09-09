@@ -597,9 +597,18 @@ def render_dashboard(
       <h1>{esc(dcfg.get("title","GitHub Actions Dashboard"))}</h1>
       <p>{esc(dcfg.get("subtitle",""))}</p>
       <div class="refresh-meta">
-        Dashboard updated <time class="local-time" data-local-time data-dashboard-generated datetime="{generated_iso}">{generated_iso}</time>
-        · repository data checked every 15 minutes
-        · Page version checked <time id="last-checked" title="Checks only whether a newer deployed dashboard page is available; it does not query GitHub repositories.">not yet</time>
+        <span class="refresh-meta__item">
+          <span class="refresh-meta__label">Dashboard updated</span>
+          <time class="local-time refresh-meta__value" data-local-time data-dashboard-generated datetime="{generated_iso}">{generated_iso}</time>
+        </span>
+        <span class="refresh-meta__item" title="Repository data is collected by the scheduled GitHub Actions workflow.">
+          <span class="refresh-meta__label">Repository check</span>
+          <span class="refresh-meta__value">every 15 min</span>
+        </span>
+        <span class="refresh-meta__item">
+          <span class="refresh-meta__label">Page version checked</span>
+          <time class="refresh-meta__value" id="last-checked" title="Checks only whether a newer deployed dashboard page is available; it does not query GitHub repositories.">not yet</time>
+        </span>
       </div>
     </div>
     <div class="hero-actions">
