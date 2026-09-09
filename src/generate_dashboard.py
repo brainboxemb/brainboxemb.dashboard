@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import html
+import hashlib
 import json
 import os
 import pathlib
@@ -321,6 +322,77 @@ def collect_repository(
         "latest": latest,
     }
 
+def dashboard_state(config: dict[str, Any], groups: list[dict[str, Any]]) -> dict[str, Any]:
+    """Return only data that can affect the rendered dashboard."""
+    normalized_groups: list[dict[str, Any]] = []
+
+    for group in groups:
+        repositories: list[dict[str, Any]] = []
+        for repo in group["repositories"]:
+            repositories.append({
+                "name": repo["name"],
+                "url": repo["url"],
+                "branch": repo["branch"],
+                "latest_tag": repo.get("latest_tag"),
+                "open_pull_requests": [
+                    {
+                        "number": pull.get("number"),
+                        "title": pull.get("title") or "",
+                    }
+                    for pull in repo.get("open_pull_requests", [])
+                ],
+                "pulls_url": repo.get("pulls_url"),
+                "branch_cleanup": repo.get("branch_cleanup", []),
+                "delete_branch_on_merge": bool(repo.get("delete_branch_on_merge", False)),
+                "settings_url": repo.get("settings_url"),
+                "workflows": [
+                    {
+                        "name": workflow.name,
+                        "path": workflow.path,
+                        "state": workflow.state,
+                        "conclusion": workflow.conclusion,
+                        "run_url": workflow.run_url,
+                        "updated_at": workflow.updated_at,
+                        "workflow_url": workflow.workflow_url,
+                    }
+                    for workflow in repo["workflows"]
+                ],
+                "latest": repo.get("latest"),
+            })
+        normalized_groups.append({
+            "name": group["name"],
+            "repositories": repositories,
+        })
+
+    return {
+        "config": config,
+        "groups": normalized_groups,
+    }
+
+
+def dashboard_content_hash(
+    config: dict[str, Any],
+    groups: list[dict[str, Any]],
+    asset_paths: list[pathlib.Path] | None = None,
+) -> str:
+    """Hash dashboard-visible state and renderer/static assets, excluding generation time."""
+    digest = hashlib.sha256()
+    payload = json.dumps(
+        dashboard_state(config, groups),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    digest.update(payload)
+
+    for path in sorted(asset_paths or [], key=lambda item: str(item)):
+        digest.update(str(path).encode("utf-8"))
+        if path.exists():
+            digest.update(path.read_bytes())
+
+    return digest.hexdigest()
+
+
 def status_counts(groups: list[dict[str, Any]]) -> dict[str, int]:
     counts = {k: 0 for k in ["passing", "failing", "running", "cancelled", "neutral", "no-status"]}
     for group in groups:
@@ -360,7 +432,12 @@ def render_workflow(wf: WorkflowStatus) -> str:
         f'<span class="workflow__state">{label}</span></a>'
     )
 
-def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], generated_at: dt.datetime) -> str:
+def render_dashboard(
+    config: dict[str, Any],
+    groups: list[dict[str, Any]],
+    generated_at: dt.datetime,
+    content_hash: str = "",
+) -> str:
     dcfg = config["dashboard"]
     counts = status_counts(groups)
     repo_count = sum(len(g["repositories"]) for g in groups)
@@ -489,7 +566,7 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
         )
 
     generated_iso = generated_at.replace(microsecond=0).isoformat().replace("+00:00","Z")
-    asset_version = int(generated_at.timestamp())
+    asset_version = content_hash[:12] if content_hash else str(int(generated_at.timestamp()))
     dashboard_repo = dcfg.get("repository")
     refresh_workflow = dcfg.get("refresh_workflow", "deploy-dashboard.yml")
     settings_workflow = dcfg.get("settings_workflow", "configure-repositories.yml")
@@ -509,6 +586,7 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light dark">
+  <meta name="dashboard-content-hash" content="{esc(content_hash)}">
   <title>{esc(dcfg.get("title","GitHub Actions Dashboard"))}</title>
   <link rel="stylesheet" href="style.css?v={asset_version}">
 </head>
@@ -519,7 +597,8 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
       <h1>{esc(dcfg.get("title","GitHub Actions Dashboard"))}</h1>
       <p>{esc(dcfg.get("subtitle",""))}</p>
       <div class="refresh-meta">
-        Data generated <time class="local-time" data-local-time data-dashboard-generated datetime="{generated_iso}">{generated_iso}</time>
+        Dashboard updated <time class="local-time" data-local-time data-dashboard-generated datetime="{generated_iso}">{generated_iso}</time>
+        · repository data checked every 15 minutes
         · Page version checked <time id="last-checked" title="Checks only whether a newer deployed dashboard page is available; it does not query GitHub repositories.">not yet</time>
       </div>
     </div>
@@ -595,15 +674,35 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Generate a static GitHub Actions status dashboard")
     parser.add_argument("--config", default="dashboard.yml", type=pathlib.Path)
     parser.add_argument("--output", default="site/index.html", type=pathlib.Path)
+    parser.add_argument("--hash-output", type=pathlib.Path)
     args = parser.parse_args()
     config = load_config(args.config)
     token = os.environ.get("DASHBOARD_TOKEN") or os.environ.get("GITHUB_TOKEN")
     settings_token = os.environ.get("DASHBOARD_ADMIN_TOKEN")
     groups = collect(config, token, settings_token)
     generated_at = dt.datetime.now(dt.timezone.utc)
+    asset_paths = [
+        pathlib.Path(__file__),
+        args.output.parent / "app.js",
+        args.output.parent / "style.css",
+        pathlib.Path("requirements.txt"),
+    ]
+    content_hash = dashboard_content_hash(config, groups, asset_paths)
+
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(render_dashboard(config, groups, generated_at), encoding="utf-8")
-    print(f"Wrote {args.output} with {sum(len(g['repositories']) for g in groups)} repositories", file=sys.stderr)
+    args.output.write_text(
+        render_dashboard(config, groups, generated_at, content_hash),
+        encoding="utf-8",
+    )
+    if args.hash_output:
+        args.hash_output.parent.mkdir(parents=True, exist_ok=True)
+        args.hash_output.write_text(content_hash + "\n", encoding="utf-8")
+
+    print(
+        f"Wrote {args.output} with {sum(len(g['repositories']) for g in groups)} repositories "
+        f"(content hash {content_hash})",
+        file=sys.stderr,
+    )
     return 0
 
 if __name__ == "__main__":
