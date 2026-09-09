@@ -20,6 +20,7 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 - search and **Problems only** filtering;
 - responsive light/dark styling;
 - refresh timestamp shown at the top in the viewer's local time;
+- checks every minute for a newly deployed dashboard and reloads automatically when one is available;
 - manual refresh shortcut to the GitHub Actions workflow.
 
 Repositories without active workflows remain visible, but are collected in a separate **Repositories without Actions** section at the bottom. This keeps the main groups focused on repositories with workflow status while still giving a complete overview. The **Latest tag** column can be disabled with `dashboard.show_latest_tag: false`, the **Open PRs** column with `dashboard.show_open_pull_requests: false`, branch cleanup scanning with `dashboard.show_branch_cleanup: false`, and the **PR branch auto-delete** column with `dashboard.show_branch_auto_delete: false`.
@@ -57,7 +58,7 @@ After the initial commit:
 2. Set **Source** to **GitHub Actions**.
 3. Open **Actions → Update Actions dashboard** and run it once with **Run workflow**.
 
-The scheduled workflow refreshes the dashboard every four hours. The dashboard also contains a **Refresh dashboard** button that opens the workflow page; when signed in to GitHub, choose **Run workflow** there for an immediate rebuild. A static GitHub Pages page cannot securely dispatch a workflow directly without exposing credentials or adding a backend.
+The scheduled workflow refreshes the dashboard every four hours. The browser checks every minute for a newer deployed copy and reloads automatically when one appears. **Check now** performs that check immediately. **Rebuild dashboard** opens the workflow page; when signed in to GitHub, choose **Run workflow** there for an immediate data rebuild. A static GitHub Pages page cannot securely dispatch a workflow directly without exposing credentials or adding a backend.
 
 ## Repository access
 
