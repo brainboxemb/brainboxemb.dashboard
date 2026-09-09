@@ -11,6 +11,7 @@ on:
       - "requirements.txt"
       - "src/**"
       - "site/**"
+      - "tests/**"
       - ".github/workflows/deploy-dashboard.yml"
 
 permissions:
