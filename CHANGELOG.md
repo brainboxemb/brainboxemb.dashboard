@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Show configured repositories even when they have no active workflows.
 - Show the latest Git tag for each monitored repository.
 
 ## v0.1.0 - 2026-09-09
