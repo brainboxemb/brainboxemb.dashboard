@@ -489,6 +489,7 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
         )
 
     generated_iso = generated_at.replace(microsecond=0).isoformat().replace("+00:00","Z")
+    asset_version = int(generated_at.timestamp())
     dashboard_repo = dcfg.get("repository")
     refresh_workflow = dcfg.get("refresh_workflow", "deploy-dashboard.yml")
     settings_workflow = dcfg.get("settings_workflow", "configure-repositories.yml")
@@ -509,7 +510,7 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>{esc(dcfg.get("title","GitHub Actions Dashboard"))}</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v={asset_version}">
 </head>
 <body>
 <main class="page">
@@ -517,11 +518,12 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
     <div class="hero-copy">
       <h1>{esc(dcfg.get("title","GitHub Actions Dashboard"))}</h1>
       <p>{esc(dcfg.get("subtitle",""))}</p>
-      <div class="refresh-meta">Last refreshed <time class="local-time" data-local-time datetime="{generated_iso}">{generated_iso}</time></div>
+      <div class="refresh-meta">Last refreshed <time class="local-time" data-local-time data-dashboard-generated datetime="{generated_iso}">{generated_iso}</time> · auto-check every minute</div>
     </div>
     <div class="hero-actions">
       <div class="health {health_class}">{health}</div>
-      {f'<a class="refresh-button" href="{esc(refresh_url)}" target="_blank" rel="noopener" title="Open the GitHub Actions workflow and choose Run workflow">Refresh dashboard ↗</a>' if refresh_url else ''}
+      <button class="refresh-button" id="check-dashboard" type="button" title="Check whether a newer deployed dashboard is available">Check now</button>
+      {f'<a class="refresh-button" href="{esc(refresh_url)}" target="_blank" rel="noopener" title="Open the GitHub Actions workflow and choose Run workflow">Rebuild dashboard ↗</a>' if refresh_url else ''}
       {f'<a class="refresh-button" href="{esc(settings_workflow_url)}" target="_blank" rel="noopener" title="Open the repository settings workflow">Repository settings ↗</a>' if settings_workflow_url else ''}
     </div>
   </header>
@@ -533,7 +535,7 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
   <div id="groups">{"".join(sections)}{cleanup_section_html}</div>
   <footer>Generated <time class="local-time" data-local-time datetime="{generated_iso}">{generated_iso}</time> · Static GitHub Pages dashboard</footer>
 </main>
-<script src="app.js"></script>
+<script src="app.js?v={asset_version}"></script>
 </body>
 </html>
 """
