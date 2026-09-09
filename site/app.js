@@ -4,6 +4,17 @@
   const rows = [...document.querySelectorAll('.repo-row')];
   const groups = [...document.querySelectorAll('.group')];
 
+  for (const element of document.querySelectorAll('time[data-local-time]')) {
+    const date = new Date(element.dateTime);
+    if (!Number.isNaN(date.getTime())) {
+      element.textContent = new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(date);
+      element.title = element.dateTime;
+    }
+  }
+
   function applyFilters() {
     const term = (search.value || '').trim().toLowerCase();
     const problems = problemsOnly.checked;
