@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Show branch cleanup candidates when closed pull request branches still exist.
 - Hide reusable-only workflows that are invoked exclusively through `workflow_call`.
 - Show open pull request counts per repository with links to the PR list.
 - Show the dashboard refresh timestamp at the top in browser-local time.
