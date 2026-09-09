@@ -28,6 +28,17 @@ class DashboardTests(unittest.TestCase):
         source = """name: Mixed\non:\n  workflow_call:\n  workflow_dispatch:\n"""
         self.assertFalse(dashboard.reusable_only_workflow(source))
 
+    def test_pages_workflow_label(self):
+        labels = {"pages-build-deployment": "Pages"}
+        self.assertEqual(
+            dashboard.friendly_workflow_name(
+                "dynamic/pages/pages-build-deployment",
+                "pages-build-deployment",
+                labels,
+            ),
+            "Pages",
+        )
+
     def test_regular_workflow_is_not_hidden(self):
         source = """name: Build\non:\n  push:\n    branches: [main]\n"""
         self.assertFalse(dashboard.reusable_only_workflow(source))
@@ -154,6 +165,7 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("Rebuild dashboard", out)
         self.assertIn("app.js?v=", out)
         self.assertIn("style.css?v=", out)
+        self.assertIn('class="actions-list"', out)
         self.assertIn('name="dashboard-content-hash" content="abc123"', out)
 
 if __name__ == "__main__":
