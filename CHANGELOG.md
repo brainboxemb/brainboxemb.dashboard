@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Group repositories without active Actions in a separate section at the bottom.
 - Show configured repositories even when they have no active workflows.
 - Show the latest Git tag for each monitored repository.
 
