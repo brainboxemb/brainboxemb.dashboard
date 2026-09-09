@@ -303,6 +303,8 @@ def collect_repository(entry: dict[str, Any], config: dict[str, Any], token: str
         "open_pull_requests": open_pull_requests,
         "pulls_url": f"https://github.com/{owner}/{repo}/pulls",
         "branch_cleanup": cleanup_candidates,
+        "delete_branch_on_merge": bool(meta.get("delete_branch_on_merge", False)),
+        "settings_url": f"https://github.com/{owner}/{repo}/settings",
         "workflows": results,
         "latest": latest,
     }
@@ -353,6 +355,10 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
     workflow_count = sum(len(r["workflows"]) for g in groups for r in g["repositories"])
     open_pr_count = sum(len(r.get("open_pull_requests", [])) for g in groups for r in g["repositories"])
     cleanup_count = sum(len(r.get("branch_cleanup", [])) for g in groups for r in g["repositories"])
+    auto_delete_off_count = sum(
+        1 for g in groups for r in g["repositories"]
+        if not r.get("delete_branch_on_merge", False)
+    )
     unhealthy = counts["failing"] + counts["cancelled"]
     summary = [
         ("Repositories", repo_count, "summary--neutral"),
@@ -362,11 +368,13 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
         ("Running", counts["running"], "summary--running" if counts["running"] else "summary--neutral"),
         ("Open PRs", open_pr_count, "summary--prs" if open_pr_count else "summary--neutral"),
         ("Branch cleanup", cleanup_count, "summary--cleanup" if cleanup_count else "summary--neutral"),
+        ("Auto-delete off", auto_delete_off_count, "summary--cleanup" if auto_delete_off_count else "summary--neutral"),
     ]
     summary_html = "".join(f'<div class="summary {klass}"><strong>{value}</strong><span>{esc(label)}</span></div>' for label,value,klass in summary)
 
     show_latest_tag = bool(dcfg.get("show_latest_tag", True))
     show_open_pull_requests = bool(dcfg.get("show_open_pull_requests", True))
+    show_branch_auto_delete = bool(dcfg.get("show_branch_auto_delete", True))
     sections = []
     for group in groups:
         rows = []
@@ -389,18 +397,28 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
                 f'{pull_count} open</a>'
                 if pull_count else '<span class="empty">—</span>'
             )
+            auto_delete_enabled = bool(repo.get("delete_branch_on_merge", False))
+            auto_delete_label = "On" if auto_delete_enabled else "Off"
+            auto_delete_html = (
+                f'<a class="setting-badge setting-badge--{"on" if auto_delete_enabled else "off"}" '
+                f'href="{esc(repo.get("settings_url", repo["url"] + "/settings"))}" '
+                f'title="Automatically delete head branches after merge: {auto_delete_label}" '
+                f'target="_blank" rel="noopener">{auto_delete_label}</a>'
+            )
             search_parts = [repo["name"], *(w.name for w in repo["workflows"])]
             if tag:
                 search_parts.append(tag["name"])
             search_parts.extend(
                 f'pr {pull.get("number")} {pull.get("title", "")}' for pull in pulls
             )
+            search_parts.append(f'auto delete branch {auto_delete_label.lower()}')
             search_text = " ".join(search_parts).lower()
             rows.append(
                 f'<tr class="repo-row{" repo--problem" if problem else ""}" data-problem="{str(problem).lower()}" data-search="{esc(search_text)}">'
                 f'<td class="repo-cell"><a href="{esc(repo["url"])}" target="_blank" rel="noopener">{esc(repo["name"])}</a><div class="repo-meta">{esc(repo["branch"])}</div></td>'
                 + (f'<td class="tag-cell">{tag_html}</td>' if show_latest_tag else '')
                 + (f'<td class="pr-cell">{pr_html}</td>' if show_open_pull_requests else '')
+                + (f'<td class="setting-cell">{auto_delete_html}</td>' if show_branch_auto_delete else '')
                 + f'<td class="actions-cell">{workflow_html}</td>'
                 f'<td class="activity-cell" title="{esc(repo["latest"] or "")}">{esc(relative_time(repo["latest"], generated_at))}</td></tr>'
             )
@@ -409,6 +427,7 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
             '<thead><tr><th>Repo</th>'
             + ('<th>Latest tag</th>' if show_latest_tag else '')
             + ('<th>Open PRs</th>' if show_open_pull_requests else '')
+            + ('<th title="Automatically delete head branches after merge">PR branch auto-delete</th>' if show_branch_auto_delete else '')
             + '<th>Actions</th><th>Last activity</th></tr></thead>'
             f'<tbody>{"".join(rows)}</tbody></table></div></section>'
         )
@@ -451,8 +470,13 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
     generated_iso = generated_at.replace(microsecond=0).isoformat().replace("+00:00","Z")
     dashboard_repo = dcfg.get("repository")
     refresh_workflow = dcfg.get("refresh_workflow", "deploy-dashboard.yml")
+    settings_workflow = dcfg.get("settings_workflow", "configure-repositories.yml")
     refresh_url = (
         f"https://github.com/{dcfg.get('owner')}/{dashboard_repo}/actions/workflows/{refresh_workflow}"
+        if dcfg.get("owner") and dashboard_repo else None
+    )
+    settings_workflow_url = (
+        f"https://github.com/{dcfg.get('owner')}/{dashboard_repo}/actions/workflows/{settings_workflow}"
         if dcfg.get("owner") and dashboard_repo else None
     )
     health = "Problems detected" if unhealthy else "All monitored workflows healthy"
@@ -477,6 +501,7 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
     <div class="hero-actions">
       <div class="health {health_class}">{health}</div>
       {f'<a class="refresh-button" href="{esc(refresh_url)}" target="_blank" rel="noopener" title="Open the GitHub Actions workflow and choose Run workflow">Refresh dashboard ↗</a>' if refresh_url else ''}
+      {f'<a class="refresh-button" href="{esc(settings_workflow_url)}" target="_blank" rel="noopener" title="Open the repository settings workflow">Repository settings ↗</a>' if settings_workflow_url else ''}
     </div>
   </header>
   <section class="summary-grid">{summary_html}</section>
