@@ -90,6 +90,20 @@ def friendly_workflow_name(path: str, name: str, labels: dict[str, str]) -> str:
 def fetch_repository(owner: str, repo: str, token: str | None) -> dict[str, Any]:
     return request_json(f"{API}/repos/{owner}/{repo}", token)
 
+def fetch_latest_tag(owner: str, repo: str, token: str | None) -> dict[str, str] | None:
+    tags = request_json(f"{API}/repos/{owner}/{repo}/tags?per_page=1", token)
+    if not tags:
+        return None
+    tag = tags[0]
+    name = tag.get("name")
+    if not name:
+        return None
+    return {
+        "name": name,
+        "sha": (tag.get("commit") or {}).get("sha", ""),
+        "url": f"https://github.com/{owner}/{repo}/tree/{urllib.parse.quote(name, safe='')}",
+    }
+
 def fetch_workflows(owner: str, repo: str, token: str | None) -> list[dict[str, Any]]:
     return request_json(f"{API}/repos/{owner}/{repo}/actions/workflows?per_page=100", token).get("workflows", [])
 
@@ -102,6 +116,7 @@ def collect_repository(entry: dict[str, Any], config: dict[str, Any], token: str
     owner, repo = entry["owner"], entry["name"]
     meta = fetch_repository(owner, repo, token)
     branch = entry.get("branch") or meta.get("default_branch") or "main"
+    latest_tag = fetch_latest_tag(owner, repo, token)
     workflows = fetch_workflows(owner, repo, token)
     show_disabled = bool(config["dashboard"].get("show_disabled_workflows", False))
     include = set(entry.get("include_workflows", []))
@@ -140,6 +155,7 @@ def collect_repository(entry: dict[str, Any], config: dict[str, Any], token: str
         "name": repo,
         "url": meta.get("html_url") or f"https://github.com/{owner}/{repo}",
         "branch": branch,
+        "latest_tag": latest_tag,
         "workflows": results,
         "latest": latest,
     }
@@ -198,22 +214,32 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
     ]
     summary_html = "".join(f'<div class="summary {klass}"><strong>{value}</strong><span>{esc(label)}</span></div>' for label,value,klass in summary)
 
+    show_latest_tag = bool(dcfg.get("show_latest_tag", True))
     sections = []
     for group in groups:
         rows = []
         for repo in group["repositories"]:
             workflow_html = "".join(render_workflow(w) for w in repo["workflows"]) or '<span class="empty">No workflows</span>'
             problem = any(w.display_state in {"failing","cancelled"} for w in repo["workflows"])
-            search_text = " ".join([repo["name"], *(w.name for w in repo["workflows"])]).lower()
+            tag = repo.get("latest_tag")
+            tag_html = (
+                f'<a class="tag" href="{esc(tag["url"])}" title="{esc(tag.get("sha", ""))}" target="_blank" rel="noopener">{esc(tag["name"])}</a>'
+                if tag else '<span class="empty">No tags</span>'
+            )
+            search_parts = [repo["name"], *(w.name for w in repo["workflows"])]
+            if tag:
+                search_parts.append(tag["name"])
+            search_text = " ".join(search_parts).lower()
             rows.append(
                 f'<tr class="repo-row{" repo--problem" if problem else ""}" data-problem="{str(problem).lower()}" data-search="{esc(search_text)}">'
                 f'<td class="repo-cell"><a href="{esc(repo["url"])}" target="_blank" rel="noopener">{esc(repo["name"])}</a><div class="repo-meta">{esc(repo["branch"])}</div></td>'
-                f'<td class="actions-cell">{workflow_html}</td>'
+                + (f'<td class="tag-cell">{tag_html}</td>' if show_latest_tag else '')
+                + f'<td class="actions-cell">{workflow_html}</td>'
                 f'<td class="activity-cell" title="{esc(repo["latest"] or "")}">{esc(relative_time(repo["latest"], generated_at))}</td></tr>'
             )
         sections.append(
             f'<section class="group"><h2>{esc(group["name"])}</h2><div class="table-wrap"><table>'
-            '<thead><tr><th>Repo</th><th>Actions</th><th>Last activity</th></tr></thead>'
+            '<thead><tr><th>Repo</th>' + ('<th>Latest tag</th>' if show_latest_tag else '') + '<th>Actions</th><th>Last activity</th></tr></thead>'
             f'<tbody>{"".join(rows)}</tbody></table></div></section>'
         )
 
