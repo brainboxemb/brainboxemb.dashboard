@@ -13,6 +13,7 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 - direct links to repositories and workflow runs;
 - latest Git tag per repository, linked to the tagged tree;
 - open pull request count per repository, linked to the repository's PR list;
+- branch cleanup candidates for closed pull requests whose source branch still exists;
 - last activity per repository;
 - summary counts for passing, failing, and running workflows;
 - search and **Problems only** filtering;
@@ -20,7 +21,7 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 - refresh timestamp shown at the top in the viewer's local time;
 - manual refresh shortcut to the GitHub Actions workflow.
 
-Repositories without active workflows remain visible, but are collected in a separate **Repositories without Actions** section at the bottom. This keeps the main groups focused on repositories with workflow status while still giving a complete overview. The **Latest tag** column can be disabled with `dashboard.show_latest_tag: false`, and the **Open PRs** column with `dashboard.show_open_pull_requests: false`.
+Repositories without active workflows remain visible, but are collected in a separate **Repositories without Actions** section at the bottom. This keeps the main groups focused on repositories with workflow status while still giving a complete overview. The **Latest tag** column can be disabled with `dashboard.show_latest_tag: false`, the **Open PRs** column with `dashboard.show_open_pull_requests: false`, and branch cleanup scanning with `dashboard.show_branch_cleanup: false`.
 
 ## Configuration
 
@@ -89,3 +90,16 @@ Open `site/index.html` in a browser after generation.
 │   └── style.css
 └── tests/test_dashboard.py
 ```
+
+
+## Branch cleanup
+
+The dashboard scans non-default branches and closed pull requests. A branch is listed in **Branch cleanup** when:
+
+- the branch still exists in the same repository;
+- its pull request is closed;
+- the branch is not the default branch.
+
+Merged PR branches are marked **merged** and are strong cleanup candidates. Branches from closed-but-unmerged PRs are marked **closed, not merged** and should be reviewed before deletion. The dashboard never deletes branches automatically; the PR link takes you to GitHub, where the branch can be removed after review.
+
+For future merged PRs, GitHub's repository setting **Automatically delete head branches** can also reduce this cleanup work.
