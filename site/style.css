@@ -95,6 +95,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .setting-badge:hover { text-decoration: none; }
 .setting-badge--on { color: var(--success); background: var(--success-bg); }
 .setting-badge--off { color: var(--running); background: var(--running-bg); }
+.setting-badge--unknown { color: var(--muted); background: var(--surface-alt); }
 .branch-link { font: 600 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
 .cleanup-state { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); font-size: 12px; font-weight: 600; }
 .cleanup-state--merged { color: var(--success); background: var(--success-bg); }
