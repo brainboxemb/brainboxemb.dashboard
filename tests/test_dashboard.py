@@ -20,6 +20,18 @@ class DashboardTests(unittest.TestCase):
         wf = dashboard.WorkflowStatus("Build", "build.yml", "in_progress", None, None, None, "https://example")
         self.assertEqual(wf.display_state, "running")
 
+    def test_reusable_only_workflow(self):
+        source = """name: Reusable\non:\n  workflow_call:\n    inputs:\n      value:\n        type: string\n"""
+        self.assertTrue(dashboard.reusable_only_workflow(source))
+
+    def test_reusable_plus_dispatch_is_not_hidden(self):
+        source = """name: Mixed\non:\n  workflow_call:\n  workflow_dispatch:\n"""
+        self.assertFalse(dashboard.reusable_only_workflow(source))
+
+    def test_regular_workflow_is_not_hidden(self):
+        source = """name: Build\non:\n  push:\n    branches: [main]\n"""
+        self.assertFalse(dashboard.reusable_only_workflow(source))
+
     def test_relative_time(self):
         now = dt.datetime(2026, 9, 9, 12, 0, tzinfo=dt.timezone.utc)
         self.assertEqual(dashboard.relative_time("2026-09-09T10:00:00Z", now), "2h ago")
