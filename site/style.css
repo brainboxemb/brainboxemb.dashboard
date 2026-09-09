@@ -99,7 +99,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .cleanup-state { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); font-size: 12px; font-weight: 600; }
 .cleanup-state--merged { color: var(--success); background: var(--success-bg); }
 .cleanup-state--closed { color: var(--running); background: var(--running-bg); }
-.actions-cell { display: flex; flex-wrap: wrap; gap: 7px; }
+.actions-cell { min-width: 280px; }
+.actions-list { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; min-height: 25px; }
 .workflow { display: inline-flex; align-items: center; min-height: 25px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; color: var(--text); background: var(--surface-alt); text-decoration: none; font-size: 12px; font-weight: 600; }
 .workflow:hover { text-decoration: none; filter: brightness(.98); }
 .workflow__icon { padding: 4px 6px 4px 8px; color: var(--muted); font-size: 8px; }
