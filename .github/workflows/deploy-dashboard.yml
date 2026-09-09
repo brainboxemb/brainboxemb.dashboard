@@ -3,7 +3,7 @@ name: Update Actions dashboard
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "17 */4 * * *"
   push:
     branches: [main]
     paths:
