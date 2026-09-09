@@ -55,13 +55,14 @@ h1 { font-size: 30px; line-height: 1.2; margin: 0 0 6px; }
 .health { border: 1px solid var(--border); border-radius: 999px; padding: 7px 12px; font-weight: 600; white-space: nowrap; }
 .health--ok { color: var(--success); background: var(--success-bg); }
 .health--problem { color: var(--danger); background: var(--danger-bg); }
-.summary-grid { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 10px; margin: 0 0 18px; }
+.summary-grid { display: grid; grid-template-columns: repeat(6, minmax(110px, 1fr)); gap: 10px; margin: 0 0 18px; }
 .summary { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; box-shadow: var(--shadow); }
 .summary strong { display: block; font-size: 22px; line-height: 1.2; }
 .summary span { color: var(--muted); }
 .summary--passing strong { color: var(--success); }
 .summary--failing strong { color: var(--danger); }
 .summary--running strong { color: var(--running); }
+.summary--prs strong { color: var(--link); }
 .toolbar { display: flex; align-items: end; gap: 16px; margin: 0 0 24px; }
 .search { display: grid; gap: 5px; width: min(420px, 100%); color: var(--muted); font-size: 12px; font-weight: 600; }
 .search input { width: 100%; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font: inherit; }
@@ -82,6 +83,9 @@ tbody tr:last-child td { border-bottom: 0; }
 .tag-cell { white-space: nowrap; }
 .tag { display: inline-flex; align-items: center; padding: 2px 7px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-alt); color: var(--text); font: 600 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
 .tag:hover { text-decoration: none; border-color: var(--link); }
+.pr-cell { white-space: nowrap; }
+.pr-badge { display: inline-flex; align-items: center; padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-alt); color: var(--link); font-weight: 600; }
+.pr-badge:hover { text-decoration: none; border-color: var(--link); }
 .actions-cell { display: flex; flex-wrap: wrap; gap: 7px; }
 .workflow { display: inline-flex; align-items: center; min-height: 25px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; color: var(--text); background: var(--surface-alt); text-decoration: none; font-size: 12px; font-weight: 600; }
 .workflow:hover { text-decoration: none; filter: brightness(.98); }
