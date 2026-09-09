@@ -2,6 +2,8 @@ dashboard:
   title: brainboxemb GitHub Actions Dashboard
   subtitle: Current workflow status on the default branch
   owner: brainboxemb
+  repository: brainboxemb.dashboard
+  refresh_workflow: deploy-dashboard.yml
   hide_repositories_without_workflows: false
   separate_repositories_without_workflows: true
   repositories_without_workflows_group: Repositories without Actions
