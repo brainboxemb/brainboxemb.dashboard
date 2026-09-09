@@ -90,7 +90,7 @@ class DashboardTests(unittest.TestCase):
     def test_render_contains_repository_and_status(self):
         config = {"dashboard": {"title": "Test", "subtitle": "Status", "owner": "brainboxemb", "repository": "brainboxemb.dashboard", "refresh_workflow": "deploy-dashboard.yml"}}
         wf = dashboard.WorkflowStatus("Build", "build.yml", "completed", "failure", "https://run", "2026-09-09T10:00:00Z", "https://wf")
-        groups = [{"name": "Tools", "repositories": [{"name": "repo", "url": "https://repo", "branch": "main", "latest_tag": {"name": "v1.2.3", "url": "https://tag", "sha": "abc123"}, "open_pull_requests": [{"number": 42, "title": "Improve dashboard"}], "pulls_url": "https://repo/pulls", "branch_cleanup": [{"branch": "feature/test", "branch_url": "https://repo/tree/feature/test", "pr_number": 41, "pr_title": "Old branch", "pr_url": "https://repo/pull/41", "state": "merged", "closed_at": "2026-09-08T10:00:00Z", "merged_at": "2026-09-08T09:50:00Z"}], "latest": "2026-09-09T10:00:00Z", "workflows": [wf]}]}]
+        groups = [{"name": "Tools", "repositories": [{"name": "repo", "url": "https://repo", "branch": "main", "latest_tag": {"name": "v1.2.3", "url": "https://tag", "sha": "abc123"}, "open_pull_requests": [{"number": 42, "title": "Improve dashboard"}], "pulls_url": "https://repo/pulls", "delete_branch_on_merge": False, "settings_url": "https://repo/settings", "branch_cleanup": [{"branch": "feature/test", "branch_url": "https://repo/tree/feature/test", "pr_number": 41, "pr_title": "Old branch", "pr_url": "https://repo/pull/41", "state": "merged", "closed_at": "2026-09-08T10:00:00Z", "merged_at": "2026-09-08T09:50:00Z"}], "latest": "2026-09-09T10:00:00Z", "workflows": [wf]}]}]
         generated = dt.datetime(2026, 9, 9, 12, 0, tzinfo=dt.timezone.utc)
         out = dashboard.render_dashboard(config, groups, generated)
         self.assertIn("repo", out)
@@ -107,6 +107,10 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("Branch cleanup", out)
         self.assertIn("feature/test", out)
         self.assertIn("merged", out)
+        self.assertIn("PR branch auto-delete", out)
+        self.assertIn("Auto-delete off", out)
+        self.assertIn(">Off</a>", out)
+        self.assertIn("Repository settings", out)
 
 if __name__ == "__main__":
     unittest.main()
