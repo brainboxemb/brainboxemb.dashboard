@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Update relative activity timestamps live in the browser on the static dashboard.
 - Show and manage the automatic deletion of merged pull-request branches per repository.
 - Show branch cleanup candidates when closed pull request branches still exist.
 - Hide reusable-only workflows that are invoked exclusively through `workflow_call`.
