@@ -8,6 +8,7 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 
 - repositories grouped by purpose;
 - active GitHub Actions workflows discovered automatically;
+- reusable-only workflows (`workflow_call` without a normal trigger) hidden automatically;
 - status of the most recent run on each repository's default branch;
 - direct links to repositories and workflow runs;
 - latest Git tag per repository, linked to the tagged tree;
@@ -44,7 +45,7 @@ Or with overrides:
     tests: Tests
 ```
 
-`include_workflows` and `exclude_workflows` accept a workflow path, filename, normalized filename stem, or GitHub workflow name.
+`include_workflows` and `exclude_workflows` accept a workflow path, filename, normalized filename stem, or GitHub workflow name. Reusable-only workflows are hidden by default with `dashboard.hide_reusable_only_workflows: true`; this can also be overridden per repository when a reusable workflow should intentionally be shown.
 
 ## GitHub Pages setup
 
