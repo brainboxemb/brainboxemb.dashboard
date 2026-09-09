@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Show the dashboard refresh timestamp at the top in browser-local time.
+- Add a shortcut to manually run the dashboard workflow.
+- Refresh the dashboard automatically every four hours.
 - Group repositories without active Actions in a separate section at the bottom.
 - Show configured repositories even when they have no active workflows.
 - Show the latest Git tag for each monitored repository.
