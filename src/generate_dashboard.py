@@ -244,6 +244,12 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
         )
 
     generated_iso = generated_at.replace(microsecond=0).isoformat().replace("+00:00","Z")
+    dashboard_repo = dcfg.get("repository")
+    refresh_workflow = dcfg.get("refresh_workflow", "deploy-dashboard.yml")
+    refresh_url = (
+        f"https://github.com/{dcfg.get('owner')}/{dashboard_repo}/actions/workflows/{refresh_workflow}"
+        if dcfg.get("owner") and dashboard_repo else None
+    )
     health = "Problems detected" if unhealthy else "All monitored workflows healthy"
     health_class = "health--problem" if unhealthy else "health--ok"
     return f"""<!doctype html>
@@ -257,14 +263,24 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
 </head>
 <body>
 <main class="page">
-  <header class="hero"><div><h1>{esc(dcfg.get("title","GitHub Actions Dashboard"))}</h1><p>{esc(dcfg.get("subtitle",""))}</p></div><div class="health {health_class}">{health}</div></header>
+  <header class="hero">
+    <div class="hero-copy">
+      <h1>{esc(dcfg.get("title","GitHub Actions Dashboard"))}</h1>
+      <p>{esc(dcfg.get("subtitle",""))}</p>
+      <div class="refresh-meta">Last refreshed <time class="local-time" data-local-time datetime="{generated_iso}">{generated_iso}</time></div>
+    </div>
+    <div class="hero-actions">
+      <div class="health {health_class}">{health}</div>
+      {f'<a class="refresh-button" href="{esc(refresh_url)}" target="_blank" rel="noopener" title="Open the GitHub Actions workflow and choose Run workflow">Refresh dashboard ↗</a>' if refresh_url else ''}
+    </div>
+  </header>
   <section class="summary-grid">{summary_html}</section>
   <section class="toolbar" aria-label="Dashboard filters">
     <label class="search"><span>Search</span><input id="search" type="search" placeholder="Repository or workflow…"></label>
     <label class="toggle"><input id="problems-only" type="checkbox"><span>Problems only</span></label>
   </section>
   <div id="groups">{"".join(sections)}</div>
-  <footer>Generated <time datetime="{generated_iso}">{generated_iso}</time> · Static GitHub Pages dashboard</footer>
+  <footer>Generated <time class="local-time" data-local-time datetime="{generated_iso}">{generated_iso}</time> · Static GitHub Pages dashboard</footer>
 </main>
 <script src="app.js"></script>
 </body>
