@@ -432,7 +432,12 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
                 + (f'<td class="pr-cell">{pr_html}</td>' if show_open_pull_requests else '')
                 + (f'<td class="setting-cell">{auto_delete_html}</td>' if show_branch_auto_delete else '')
                 + f'<td class="actions-cell">{workflow_html}</td>'
-                f'<td class="activity-cell" title="{esc(repo["latest"] or "")}">{esc(relative_time(repo["latest"], generated_at))}</td></tr>'
+                + (
+                    f'<td class="activity-cell"><time class="relative-time" data-relative-time '
+                    f'datetime="{esc(repo["latest"])}">{esc(relative_time(repo["latest"], generated_at))}</time></td></tr>'
+                    if repo["latest"]
+                    else '<td class="activity-cell"><span class="empty">—</span></td></tr>'
+                )
             )
         sections.append(
             f'<section class="group"><h2>{esc(group["name"])}</h2><div class="table-wrap"><table>'
@@ -464,8 +469,12 @@ def render_dashboard(config: dict[str, Any], groups: list[dict[str, Any]], gener
                     f'<td><a class="branch-link" href="{esc(candidate["branch_url"])}" target="_blank" rel="noopener">{esc(candidate["branch"])}</a></td>'
                     f'<td><a href="{esc(candidate["pr_url"])}" target="_blank" rel="noopener">#{esc(candidate.get("pr_number", ""))} {esc(candidate.get("pr_title", ""))}</a></td>'
                     f'<td><span class="cleanup-state cleanup-state--{esc(state)}">{esc(state_label)}</span></td>'
-                    f'<td class="activity-cell">{esc(relative_time(when, generated_at))}</td>'
-                    f'</tr>'
+                    + (
+                        f'<td class="activity-cell"><time class="relative-time" data-relative-time '
+                        f'datetime="{esc(when)}">{esc(relative_time(when, generated_at))}</time></td>'
+                        if when else '<td class="activity-cell"><span class="empty">—</span></td>'
+                    )
+                    + '</tr>'
                 )
 
     cleanup_section_html = ""
