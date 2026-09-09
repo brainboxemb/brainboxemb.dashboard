@@ -4,6 +4,7 @@ dashboard:
   owner: brainboxemb
   repository: brainboxemb.dashboard
   refresh_workflow: deploy-dashboard.yml
+  settings_workflow: configure-repositories.yml
   hide_repositories_without_workflows: false
   separate_repositories_without_workflows: true
   repositories_without_workflows_group: Repositories without Actions
@@ -12,6 +13,7 @@ dashboard:
   show_latest_tag: true
   show_open_pull_requests: true
   show_branch_cleanup: true
+  show_branch_auto_delete: true
   stale_after_hours: 168
 
 groups:
