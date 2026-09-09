@@ -275,8 +275,15 @@ def collect(config: dict[str, Any], token: str | None) -> list[dict[str, Any]]:
     owner = config["dashboard"].get("owner")
     if not owner:
         raise ValueError("dashboard.owner is required")
-    hide_empty = bool(config["dashboard"].get("hide_repositories_without_workflows", True))
+
+    dcfg = config["dashboard"]
+    hide_empty = bool(dcfg.get("hide_repositories_without_workflows", False))
+    separate_empty = bool(dcfg.get("separate_repositories_without_workflows", True))
+    empty_group_name = dcfg.get("repositories_without_workflows_group", "Repositories without Actions")
+
     groups = []
+    repositories_without_workflows = []
+
     for group_cfg in config["groups"]:
         repositories = []
         for raw in group_cfg.get("repositories", []):
@@ -287,11 +294,25 @@ def collect(config: dict[str, Any], token: str | None) -> list[dict[str, Any]]:
             except Exception as exc:
                 print(f"WARNING: {entry['owner']}/{entry['name']}: {exc}", file=sys.stderr)
                 continue
-            if hide_empty and not repo["workflows"]:
-                continue
+
+            if not repo["workflows"]:
+                if hide_empty:
+                    continue
+                if separate_empty:
+                    repositories_without_workflows.append(repo)
+                    continue
+
             repositories.append(repo)
+
         if repositories:
             groups.append({"name": group_cfg.get("name","Repositories"), "repositories": repositories})
+
+    if repositories_without_workflows:
+        groups.append({
+            "name": empty_group_name,
+            "repositories": repositories_without_workflows,
+        })
+
     return groups
 
 def main() -> int:
