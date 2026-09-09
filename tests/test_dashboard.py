@@ -99,7 +99,7 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("Latest tag", out)
         self.assertIn("v1.2.3", out)
         self.assertIn("Last refreshed", out)
-        self.assertIn("Refresh dashboard", out)
+        self.assertIn("Rebuild dashboard", out)
         self.assertIn("actions/workflows/deploy-dashboard.yml", out)
         self.assertIn("Open PRs", out)
         self.assertIn("1 open", out)
