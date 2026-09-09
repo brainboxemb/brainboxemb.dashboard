@@ -87,18 +87,49 @@ class DashboardTests(unittest.TestCase):
         now = dt.datetime(2026, 9, 9, 12, 0, tzinfo=dt.timezone.utc)
         self.assertEqual(dashboard.relative_time("2026-09-09T10:00:00Z", now), "2h ago")
 
+    def test_dashboard_content_hash_is_stable_and_tracks_visible_state(self):
+        config = {"dashboard": {"title": "Test"}, "groups": []}
+        wf = dashboard.WorkflowStatus(
+            "Build", "build.yml", "completed", "success",
+            "https://run", "2026-09-09T10:00:00Z", "https://wf"
+        )
+        groups = [{
+            "name": "Tools",
+            "repositories": [{
+                "name": "repo",
+                "url": "https://repo",
+                "branch": "main",
+                "latest_tag": None,
+                "open_pull_requests": [],
+                "pulls_url": "https://repo/pulls",
+                "branch_cleanup": [],
+                "delete_branch_on_merge": True,
+                "settings_url": "https://repo/settings",
+                "workflows": [wf],
+                "latest": "2026-09-09T10:00:00Z",
+            }],
+        }]
+
+        first = dashboard.dashboard_content_hash(config, groups)
+        second = dashboard.dashboard_content_hash(config, groups)
+        self.assertEqual(first, second)
+
+        wf.conclusion = "failure"
+        changed = dashboard.dashboard_content_hash(config, groups)
+        self.assertNotEqual(first, changed)
+
     def test_render_contains_repository_and_status(self):
         config = {"dashboard": {"title": "Test", "subtitle": "Status", "owner": "brainboxemb", "repository": "brainboxemb.dashboard", "refresh_workflow": "deploy-dashboard.yml"}}
         wf = dashboard.WorkflowStatus("Build", "build.yml", "completed", "failure", "https://run", "2026-09-09T10:00:00Z", "https://wf")
         groups = [{"name": "Tools", "repositories": [{"name": "repo", "url": "https://repo", "branch": "main", "latest_tag": {"name": "v1.2.3", "url": "https://tag", "sha": "abc123"}, "open_pull_requests": [{"number": 42, "title": "Improve dashboard"}], "pulls_url": "https://repo/pulls", "delete_branch_on_merge": False, "settings_url": "https://repo/settings", "branch_cleanup": [{"branch": "feature/test", "branch_url": "https://repo/tree/feature/test", "pr_number": 41, "pr_title": "Old branch", "pr_url": "https://repo/pull/41", "state": "merged", "closed_at": "2026-09-08T10:00:00Z", "merged_at": "2026-09-08T09:50:00Z"}], "latest": "2026-09-09T10:00:00Z", "workflows": [wf]}]}]
         generated = dt.datetime(2026, 9, 9, 12, 0, tzinfo=dt.timezone.utc)
-        out = dashboard.render_dashboard(config, groups, generated)
+        out = dashboard.render_dashboard(config, groups, generated, "abc123")
         self.assertIn("repo", out)
         self.assertIn("failing", out)
         self.assertIn("Problems detected", out)
         self.assertIn("Latest tag", out)
         self.assertIn("v1.2.3", out)
-        self.assertIn("Data generated", out)
+        self.assertIn("Dashboard updated", out)
         self.assertIn("Page version checked", out)
         self.assertIn("Rebuild dashboard", out)
         self.assertIn("actions/workflows/deploy-dashboard.yml", out)
@@ -120,6 +151,7 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("Rebuild dashboard", out)
         self.assertIn("app.js?v=", out)
         self.assertIn("style.css?v=", out)
+        self.assertIn('name="dashboard-content-hash" content="abc123"', out)
 
 if __name__ == "__main__":
     unittest.main()
