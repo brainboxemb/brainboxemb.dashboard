@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Show the latest Git tag for each monitored repository.
+
 ## v0.1.0 - 2026-09-09
 
 - Initial static GitHub Actions dashboard.
