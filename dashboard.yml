@@ -4,6 +4,7 @@ dashboard:
   owner: brainboxemb
   hide_repositories_without_workflows: true
   show_disabled_workflows: false
+  show_latest_tag: true
   stale_after_hours: 168
 
 groups:
