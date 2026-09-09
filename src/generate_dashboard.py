@@ -131,11 +131,37 @@ def fetch_workflow_source(owner: str, repo: str, path: str, branch: str, token: 
 def reusable_only_workflow(source: str) -> bool:
     """Return True when the workflow can only be invoked through workflow_call."""
     lines = source.splitlines()
-    start = None
-    inline = None
+    on_index = None
+    inline_value = ""
 
     for index, line in enumerate(lines):
-        match = re.match(r'^(?:on|["\']on["\'])\s*:\s*(.*?)\s*
+        match = re.match(r"^(?:on|['\"]on['\"])\s*:\s*(.*?)\s*$", line)
+        if match:
+            on_index = index
+            inline_value = match.group(1).strip()
+            break
+
+    if on_index is None:
+        return False
+
+    if inline_value:
+        normalized = inline_value.strip("[] ").replace('"', "").replace("'", "")
+        triggers = {item.strip() for item in normalized.split(",") if item.strip()}
+        return triggers == {"workflow_call"}
+
+    triggers: set[str] = set()
+    for line in lines[on_index + 1:]:
+        if line and not line[0].isspace() and not line.lstrip().startswith("#"):
+            break
+        match = re.match(r"^\s{2}([A-Za-z_][A-Za-z0-9_-]*)\s*:", line)
+        if match:
+            triggers.add(match.group(1))
+
+    return triggers == {"workflow_call"}
+
+def fetch_workflows(owner: str, repo: str, token: str | None) -> list[dict[str, Any]]:
+    return request_json(f"{API}/repos/{owner}/{repo}/actions/workflows?per_page=100", token).get("workflows", [])
+
 def fetch_latest_run(owner: str, repo: str, workflow_id: int, branch: str, token: str | None) -> dict[str, Any] | None:
     query = urllib.parse.urlencode({"branch": branch, "per_page": 1})
     runs = request_json(f"{API}/repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs?{query}", token).get("workflow_runs", [])
