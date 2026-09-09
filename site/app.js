@@ -8,6 +8,9 @@
     dateStyle: 'medium',
     timeStyle: 'short',
   });
+  const localDateFormatter = new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+  });
 
   for (const element of document.querySelectorAll('time[data-local-time]')) {
     const date = new Date(element.dateTime);
@@ -28,9 +31,9 @@
     if (hours < 24) return `${hours}h ago`;
 
     const days = Math.floor(hours / 24);
-    if (days < 30) return `${days}d ago`;
+    if (days <= 99) return `${days}d ago`;
 
-    return localDateTimeFormatter.format(date);
+    return '>99d ago';
   }
 
   function updateRelativeTimes() {
@@ -39,7 +42,7 @@
       const date = new Date(element.dateTime);
       if (!Number.isNaN(date.getTime())) {
         element.textContent = relativeLabel(date, now);
-        element.title = localDateTimeFormatter.format(date);
+        element.title = localDateFormatter.format(date);
       }
     }
   }
