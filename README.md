@@ -14,6 +14,7 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 - latest Git tag per repository, linked to the tagged tree;
 - open pull request count per repository, linked to the repository's PR list;
 - branch cleanup candidates for closed pull requests whose source branch still exists;
+- branch auto-delete setting (`delete_branch_on_merge`) per repository;
 - last activity per repository;
 - summary counts for passing, failing, and running workflows;
 - search and **Problems only** filtering;
@@ -21,7 +22,7 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 - refresh timestamp shown at the top in the viewer's local time;
 - manual refresh shortcut to the GitHub Actions workflow.
 
-Repositories without active workflows remain visible, but are collected in a separate **Repositories without Actions** section at the bottom. This keeps the main groups focused on repositories with workflow status while still giving a complete overview. The **Latest tag** column can be disabled with `dashboard.show_latest_tag: false`, the **Open PRs** column with `dashboard.show_open_pull_requests: false`, and branch cleanup scanning with `dashboard.show_branch_cleanup: false`.
+Repositories without active workflows remain visible, but are collected in a separate **Repositories without Actions** section at the bottom. This keeps the main groups focused on repositories with workflow status while still giving a complete overview. The **Latest tag** column can be disabled with `dashboard.show_latest_tag: false`, the **Open PRs** column with `dashboard.show_open_pull_requests: false`, branch cleanup scanning with `dashboard.show_branch_cleanup: false`, and the **PR branch auto-delete** column with `dashboard.show_branch_auto_delete: false`.
 
 ## Configuration
 
@@ -103,3 +104,33 @@ The dashboard scans non-default branches and closed pull requests. A branch is l
 Merged PR branches are marked **merged** and are strong cleanup candidates. Branches from closed-but-unmerged PRs are marked **closed, not merged** and should be reviewed before deletion. The dashboard never deletes branches automatically; the PR link takes you to GitHub, where the branch can be removed after review.
 
 For future merged PRs, GitHub's repository setting **Automatically delete head branches** can also reduce this cleanup work.
+
+
+## Repository settings
+
+The **PR branch auto-delete** column shows GitHub's `delete_branch_on_merge` repository setting:
+
+- **On** — GitHub automatically deletes the PR head branch after a successful merge.
+- **Off** — merged PR branches remain until they are deleted manually.
+
+The badge links to the repository's Settings page.
+
+The dashboard also includes a **Repository settings** shortcut to the `Configure repository settings` workflow. This workflow can enable or disable automatic merged-branch deletion for one configured repository or for all configured repositories.
+
+To use the settings workflow, add a repository secret named `DASHBOARD_ADMIN_TOKEN`. Use a separate fine-grained personal access token restricted to the repositories you want the dashboard to manage, with **Administration: Read and write** repository permission. Keep the existing read-only `DASHBOARD_TOKEN` separate.
+
+Example workflow inputs:
+
+```text
+repository: all
+delete_branch_on_merge: true
+```
+
+or:
+
+```text
+repository: tool.scad-project
+delete_branch_on_merge: true
+```
+
+The settings workflow changes only the `delete_branch_on_merge` property.
