@@ -49,6 +49,7 @@ groups:
       - exp.2026-001.marp
 
 workflow_labels:
+  pages-build-deployment: Pages
   render-openscad: Render OpenSCAD
   render_openscad_pngs: Render OpenSCAD
   export-openscad-stls: Export STL
