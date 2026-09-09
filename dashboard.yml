@@ -11,6 +11,7 @@ dashboard:
   hide_reusable_only_workflows: true
   show_latest_tag: true
   show_open_pull_requests: true
+  show_branch_cleanup: true
   stale_after_hours: 168
 
 groups:
