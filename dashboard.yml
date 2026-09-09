@@ -5,6 +5,7 @@ dashboard:
   repository: brainboxemb.dashboard
   refresh_workflow: deploy-dashboard.yml
   settings_workflow: configure-repositories.yml
+  # Repository settings changes use DASHBOARD_ADMIN_TOKEN.
   hide_repositories_without_workflows: false
   separate_repositories_without_workflows: true
   repositories_without_workflows_group: Repositories without Actions
