@@ -65,6 +65,7 @@
   }
 
   function formatDuration(value) {
+    if (value === null || value === undefined || value === '') return '—';
     const seconds = Number(value);
     if (!Number.isFinite(seconds)) return '—';
     if (seconds < 60) return `${Math.round(seconds)}s`;
@@ -77,6 +78,7 @@
   }
 
   function formatPercent(value) {
+    if (value === null || value === undefined || value === '') return '—';
     const number = Number(value);
     return Number.isFinite(number) ? `${number.toFixed(number % 1 ? 1 : 0)}%` : '—';
   }
