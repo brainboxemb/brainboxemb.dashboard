@@ -24,8 +24,8 @@
     .find((item) => item.querySelector('.refresh-meta__label')?.textContent.trim() === 'Repository check');
   const repositoryCheckValue = repositoryCheckItem?.querySelector('.refresh-meta__value');
   if (repositoryCheckValue) {
-    repositoryCheckValue.textContent = 'hourly at :11';
-    repositoryCheckValue.title = 'Scheduled for 11 minutes past every hour; GitHub may delay scheduled runs.';
+    repositoryCheckValue.textContent = 'scheduled hourly at :11';
+    repositoryCheckValue.title = 'Best-effort GitHub schedule for 11 minutes past every hour; scheduled runs may be delayed or missed.';
   }
 
   function relativeLabel(date, now = new Date()) {
@@ -55,8 +55,109 @@
     }
   }
 
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  function formatDuration(value) {
+    const seconds = Number(value);
+    if (!Number.isFinite(seconds)) return '—';
+    if (seconds < 60) return `${Math.round(seconds)}s`;
+
+    const minutes = seconds / 60;
+    if (minutes < 60) return `${minutes < 10 ? minutes.toFixed(1) : Math.round(minutes)}m`;
+
+    const hours = minutes / 60;
+    return `${hours < 10 ? hours.toFixed(1) : Math.round(hours)}h`;
+  }
+
+  function formatPercent(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? `${number.toFixed(number % 1 ? 1 : 0)}%` : '—';
+  }
+
+  function metricCard(label, value, title = '') {
+    return `<div class="metric-card"${title ? ` title="${escapeHtml(title)}"` : ''}><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div>`;
+  }
+
+  function metricRows(items, workflowRows = false) {
+    return items.map((item) => {
+      const label = workflowRows
+        ? `${escapeHtml(item.repository)} · ${escapeHtml(item.name)}`
+        : escapeHtml(item.name);
+      const href = escapeHtml(item.url || '#');
+      return `<tr>
+        <td><a href="${href}" target="_blank" rel="noopener">${label}</a></td>
+        <td class="metrics-number">${escapeHtml(item.runs)}</td>
+        <td class="metrics-number">${formatPercent(item.success_rate)}</td>
+        <td class="metrics-number">${escapeHtml(item.failed)}</td>
+        <td class="metrics-number">${escapeHtml(item.cancelled)}</td>
+        <td class="metrics-number">${formatDuration(item.runtime_seconds)}</td>
+        <td class="metrics-number">${formatDuration(item.avg_runtime_seconds)}</td>
+        <td class="metrics-number">${formatDuration(item.avg_queue_seconds)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderActionMetrics(metrics) {
+    const anchor = document.querySelector('.summary-grid');
+    const summary = metrics?.summary;
+    if (!anchor || !summary) return;
+
+    const windowDays = Number(metrics.window_days) || 30;
+    const repositories = Array.isArray(metrics.repositories) ? metrics.repositories : [];
+    const workflows = Array.isArray(metrics.workflows) ? metrics.workflows.slice(0, 30) : [];
+    const section = document.createElement('section');
+    section.className = 'group metrics-group';
+    section.innerHTML = `
+      <h2>Actions metrics</h2>
+      <p class="group-note">Last ${windowDays} days · collected at most once per UTC day · derived from workflow run history. Runtime is wall-clock workflow duration, not billable Actions minutes.</p>
+      <div class="metrics-grid">
+        ${metricCard('Runs', summary.runs)}
+        ${metricCard('Success rate', formatPercent(summary.success_rate), 'Success divided by success plus failure-like conclusions; cancelled and neutral runs are shown separately.')}
+        ${metricCard('Failed', summary.failed)}
+        ${metricCard('Cancelled', summary.cancelled)}
+        ${metricCard('Runtime', formatDuration(summary.runtime_seconds))}
+        ${metricCard('Avg runtime', formatDuration(summary.avg_runtime_seconds))}
+        ${metricCard('Avg queue', formatDuration(summary.avg_queue_seconds))}
+      </div>
+      <details class="metrics-details">
+        <summary>By repository</summary>
+        <div class="table-wrap metrics-table-wrap"><table class="metrics-table">
+          <thead><tr><th>Repository</th><th>Runs</th><th>Success</th><th>Failed</th><th>Cancelled</th><th>Runtime</th><th>Avg runtime</th><th>Avg queue</th></tr></thead>
+          <tbody>${metricRows(repositories)}</tbody>
+        </table></div>
+      </details>
+      <details class="metrics-details">
+        <summary>Top workflows by runtime</summary>
+        <div class="table-wrap metrics-table-wrap"><table class="metrics-table">
+          <thead><tr><th>Workflow</th><th>Runs</th><th>Success</th><th>Failed</th><th>Cancelled</th><th>Runtime</th><th>Avg runtime</th><th>Avg queue</th></tr></thead>
+          <tbody>${metricRows(workflows, true)}</tbody>
+        </table></div>
+      </details>`;
+    anchor.insertAdjacentElement('afterend', section);
+  }
+
+  async function loadActionMetrics() {
+    try {
+      const metricsUrl = new URL('action-metrics.json', window.location.href);
+      metricsUrl.searchParams.set('_check', Date.now().toString());
+      const response = await fetch(metricsUrl, { cache: 'no-store' });
+      if (!response.ok) return;
+      renderActionMetrics(await response.json());
+    } catch (error) {
+      // Metrics are supplemental; keep the main status dashboard usable if unavailable.
+    }
+  }
+
   updateRelativeTimes();
   window.setInterval(updateRelativeTimes, 30_000);
+  loadActionMetrics();
 
   const generatedElement = document.querySelector('time[data-dashboard-generated]');
   const checkButton = document.querySelector('#check-dashboard');
