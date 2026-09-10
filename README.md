@@ -15,6 +15,7 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 - open pull request count per repository, linked to the repository's PR list;
 - branch cleanup candidates for closed pull requests whose source branch still exists, plus branches that have never had a pull request;
 - branch auto-delete setting (`delete_branch_on_merge`) per repository;
+- daily GitHub Actions performance metrics over a configurable rolling window;
 - last activity per repository; relative activity timestamps update in the browser without rebuilding the static page;
 - summary counts for passing, failing, and running workflows;
 - search and **Problems only** filtering;
@@ -53,6 +54,18 @@ Or with overrides:
 
 Long-lived generated or publication branches can be excluded from **Branch cleanup** with `dashboard.branch_cleanup_ignore_branches`. The current configuration ignores `build`, `verification`, `dev/build`, `dev/verification`, and `gh-pages`. A repository entry can also add its own `branch_cleanup_ignore_branches` list.
 
+The Actions metrics rolling window is controlled by `dashboard.action_metrics_days`; the current value is 30 days.
+
+## Actions metrics
+
+The dashboard derives performance metrics from GitHub workflow run history for all configured repositories. The overview shows run count, success rate, failures, cancellations, total wall-clock runtime, average runtime, and average workflow queue time. Expandable tables break the same data down by repository and by the workflows using the most runtime.
+
+These values are performance/runtime measurements, not billable Actions minutes. This avoids depending on GitHub's legacy workflow timing REST endpoint and is also more meaningful for the public repositories monitored here, where standard GitHub-hosted Actions are not billed by minute.
+
+Metrics intentionally have a slower refresh path than current workflow status. The first successful dashboard run in a UTC day restores the previous snapshot, collects a new 30-day snapshot, and stores it under a date-specific Actions cache key. Later dashboard runs on the same day reuse that snapshot and do not query workflow history again. If the newly collected metric values are identical to the previous snapshot, metrics alone do not force a Pages deployment.
+
+There is no second daily cron for metrics. They piggyback on whichever dashboard run happens first that day: scheduled, manual, or triggered by a dashboard code/configuration change. This is deliberate because the GitHub schedule is best-effort. If no scheduled run occurs, **Rebuild dashboard** also refreshes the daily metrics when that day's snapshot has not yet been collected.
+
 ## GitHub Pages setup
 
 After the initial commit:
@@ -61,7 +74,7 @@ After the initial commit:
 2. Set **Source** to **GitHub Actions**.
 3. Open **Actions → Update Actions dashboard** and run it once with **Run workflow**.
 
-The scheduled workflow checks GitHub once per hour, scheduled for 11 minutes past the hour. GitHub may still delay scheduled runs. After collecting the data it computes a content fingerprint over the dashboard-visible repository state, configuration, generator, and static assets. GitHub Pages is uploaded and deployed only when that fingerprint differs from the currently deployed page. The browser checks every minute for a newer deployed copy, updates the visible **Page version checked** value, and reloads automatically when a newer copy appears. **Check for update** performs that page-version check immediately; it does not query the monitored repositories. **Rebuild dashboard** opens the workflow page; when signed in to GitHub, choose **Run workflow** there for an immediate data rebuild. A static GitHub Pages page cannot securely dispatch a workflow directly without exposing credentials or adding a backend.
+The workflow is scheduled once per hour for 11 minutes past the hour, but GitHub scheduled runs are treated as best-effort rather than as a guaranteed polling interval. After collecting current status it computes a content fingerprint over the dashboard-visible repository state, configuration, generator, and static assets. GitHub Pages is uploaded and deployed only when that fingerprint differs from the currently deployed page, or when the daily Actions metric values changed. The browser checks every minute for a newer deployed copy, updates the visible **Page version checked** value, and reloads automatically when a newer copy appears. **Check for update** performs that page-version check immediately; it does not query the monitored repositories. **Rebuild dashboard** opens the workflow page; when signed in to GitHub, choose **Run workflow** there for an immediate data rebuild. A static GitHub Pages page cannot securely dispatch a workflow directly without exposing credentials or adding a backend.
 
 ## Repository access
 
@@ -76,6 +89,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 $env:GITHUB_TOKEN = "..."   # optional, but useful for API rate limits
+python src/collect_action_metrics.py --config dashboard.yml --output site/action-metrics.json
 python src/generate_dashboard.py
 python -m unittest discover -s tests -v
 ```
@@ -89,13 +103,15 @@ Open `site/index.html` in a browser after generation.
 ├── .github/workflows/deploy-dashboard.yml
 ├── dashboard.yml
 ├── requirements.txt
-├── src/generate_dashboard.py
+├── src/
+│   ├── collect_action_metrics.py
+│   └── generate_dashboard.py
 ├── site/
+│   ├── action-metrics.json   # generated/cached, not committed
 │   ├── app.js
 │   └── style.css
-└── tests/test_dashboard.py
+└── tests/
 ```
-
 
 ## Branch cleanup
 
@@ -109,7 +125,6 @@ Branches with an open pull request are not cleanup candidates. The default branc
 Merged PR branches are marked **merged** and are strong cleanup candidates. Branches from closed-but-unmerged PRs are marked **closed, not merged**. Branches with no PR are marked **no pull request**. The latter two categories should be reviewed before deletion. The dashboard never deletes branches automatically.
 
 For future merged PRs, GitHub's repository setting **Automatically delete head branches** can also reduce this cleanup work.
-
 
 ## Repository settings
 
@@ -140,15 +155,15 @@ delete_branch_on_merge: true
 
 The settings workflow changes only the `delete_branch_on_merge` property.
 
-
 ## Change-aware Pages deployment
 
 Scheduled checks intentionally separate **data collection** from **Pages deployment**:
 
-1. collect repository/workflow/PR/branch settings data;
-2. calculate a SHA-256 fingerprint of dashboard-visible state and relevant renderer/static files;
-3. read the fingerprint embedded in the currently deployed page;
-4. skip `configure-pages`, artifact upload, and `deploy-pages` when both fingerprints are equal;
-5. deploy a new Pages version only when dashboard-visible content changed.
+1. collect current repository/workflow/PR/branch settings data;
+2. restore or, at most once per UTC day, refresh the Actions metrics snapshot;
+3. calculate a SHA-256 fingerprint of normal dashboard-visible state and relevant renderer/static files;
+4. read the fingerprint embedded in the currently deployed page;
+5. skip `configure-pages`, artifact upload, and `deploy-pages` when both fingerprints are equal and the daily metric values are unchanged;
+6. deploy a new Pages version only when current dashboard-visible content or the daily metric values changed.
 
-The generation timestamp is deliberately excluded from the fingerprint, so time passing alone never causes a deployment.
+The normal dashboard generation timestamp is deliberately excluded from the fingerprint, so time passing alone never causes a deployment.
