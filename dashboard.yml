@@ -14,6 +14,12 @@ dashboard:
   show_latest_tag: true
   show_open_pull_requests: true
   show_branch_cleanup: true
+  branch_cleanup_ignore_branches:
+    - build
+    - verification
+    - dev/build
+    - dev/verification
+    - gh-pages
   show_branch_auto_delete: true
   stale_after_hours: 168
 
