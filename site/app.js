@@ -8,9 +8,6 @@
     dateStyle: 'medium',
     timeStyle: 'short',
   });
-  const localDateFormatter = new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-  });
 
   for (const element of document.querySelectorAll('time[data-local-time]')) {
     const date = new Date(element.dateTime);
@@ -50,7 +47,7 @@
       const date = new Date(element.dateTime);
       if (!Number.isNaN(date.getTime())) {
         element.textContent = relativeLabel(date, now);
-        element.title = localDateFormatter.format(date);
+        element.title = localDateTimeFormatter.format(date);
       }
     }
   }
