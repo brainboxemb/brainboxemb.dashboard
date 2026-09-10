@@ -219,17 +219,46 @@ def branch_cleanup_candidates(
     default_branch: str,
     branches: list[dict[str, Any]],
     closed_pulls: list[dict[str, Any]],
+    open_pulls: list[dict[str, Any]] | None = None,
+    ignored_branches: set[str] | None = None,
 ) -> list[dict[str, Any]]:
-    existing = {branch.get("name") for branch in branches if branch.get("name")}
+    ignored = set(ignored_branches or set())
+    existing = {
+        branch.get("name")
+        for branch in branches
+        if branch.get("name") and branch.get("name") not in ignored
+    }
     existing.discard(default_branch)
     full_name = f"{owner}/{repo}"
+    open_pulls = open_pulls or []
     candidates: dict[str, dict[str, Any]] = {}
+    pull_branches: set[str] = set()
+    open_branches: set[str] = set()
+
+    for pull in [*closed_pulls, *open_pulls]:
+        head = pull.get("head") or {}
+        head_repo = (head.get("repo") or {}).get("full_name")
+        branch = head.get("ref")
+        if branch and head_repo == full_name:
+            pull_branches.add(branch)
+
+    for pull in open_pulls:
+        head = pull.get("head") or {}
+        head_repo = (head.get("repo") or {}).get("full_name")
+        branch = head.get("ref")
+        if branch and head_repo == full_name:
+            open_branches.add(branch)
 
     for pull in closed_pulls:
         head = pull.get("head") or {}
         head_repo = (head.get("repo") or {}).get("full_name")
         branch = head.get("ref")
-        if not branch or branch not in existing or head_repo != full_name:
+        if (
+            not branch
+            or branch not in existing
+            or branch in open_branches
+            or head_repo != full_name
+        ):
             continue
 
         candidate = {
@@ -248,6 +277,18 @@ def branch_cleanup_candidates(
         current_closed = candidate.get("closed_at") or ""
         if previous is None or current_closed > previous_closed:
             candidates[branch] = candidate
+
+    for branch in existing - pull_branches:
+        candidates[branch] = {
+            "branch": branch,
+            "branch_url": f"https://github.com/{owner}/{repo}/tree/{urllib.parse.quote(branch, safe='')}",
+            "pr_number": None,
+            "pr_title": "",
+            "pr_url": None,
+            "state": "no-pr",
+            "closed_at": None,
+            "merged_at": None,
+        }
 
     return sorted(candidates.values(), key=lambda item: item["branch"].lower())
 
@@ -318,8 +359,18 @@ def collect_repository(
     if show_branch_cleanup:
         branches = fetch_branches(owner, repo, token)
         closed_pull_requests = fetch_closed_pull_requests(owner, repo, token)
+        ignored_cleanup_branches = set(
+            config["dashboard"].get("branch_cleanup_ignore_branches", [])
+        )
+        ignored_cleanup_branches.update(entry.get("branch_cleanup_ignore_branches", []))
         cleanup_candidates = branch_cleanup_candidates(
-            owner, repo, branch, branches, closed_pull_requests
+            owner,
+            repo,
+            branch,
+            branches,
+            closed_pull_requests,
+            open_pull_requests,
+            ignored_cleanup_branches,
         )
     workflows = fetch_workflows(owner, repo, token)
     show_disabled = bool(config["dashboard"].get("show_disabled_workflows", False))
@@ -608,8 +659,20 @@ def render_dashboard(
         for repo in group["repositories"]:
             for candidate in repo.get("branch_cleanup", []):
                 state = candidate.get("state", "closed")
-                state_label = "merged" if state == "merged" else "closed, not merged"
+                if state == "merged":
+                    state_label = "merged"
+                elif state == "no-pr":
+                    state_label = "no pull request"
+                else:
+                    state_label = "closed, not merged"
                 when = candidate.get("merged_at") or candidate.get("closed_at")
+                if state == "no-pr":
+                    pr_cell_html = '<span class="empty">No pull request</span>'
+                else:
+                    pr_cell_html = (
+                        f'<a href="{esc(candidate["pr_url"])}" target="_blank" rel="noopener">'
+                        f'#{esc(candidate.get("pr_number", ""))} {esc(candidate.get("pr_title", ""))}</a>'
+                    )
                 search_text = " ".join([
                     repo["name"],
                     candidate.get("branch", ""),
@@ -621,7 +684,7 @@ def render_dashboard(
                     f'<tr class="repo-row cleanup-row" data-problem="false" data-search="{esc(search_text)}">'
                     f'<td class="repo-cell"><a href="{esc(repo["url"])}" target="_blank" rel="noopener">{esc(repo["name"])}</a></td>'
                     f'<td><a class="branch-link" href="{esc(candidate["branch_url"])}" target="_blank" rel="noopener">{esc(candidate["branch"])}</a></td>'
-                    f'<td><a href="{esc(candidate["pr_url"])}" target="_blank" rel="noopener">#{esc(candidate.get("pr_number", ""))} {esc(candidate.get("pr_title", ""))}</a></td>'
+                    f'<td>{pr_cell_html}</td>'
                     f'<td><span class="cleanup-state cleanup-state--{esc(state)}">{esc(state_label)}</span></td>'
                     + (
                         f'<td class="activity-cell"><time class="relative-time" data-relative-time '
@@ -635,8 +698,8 @@ def render_dashboard(
     if cleanup_rows:
         cleanup_section_html = (
             '<section class="group cleanup-group"><h2>Branch cleanup</h2>'
-            '<p class="group-note">Branches that still exist after their pull request was closed. '
-            'Merged branches are strong cleanup candidates; closed-but-unmerged branches should be reviewed before deletion.</p>'
+            '<p class="group-note">Branches that still exist after their pull request was closed, plus branches that have no pull request. '
+            'Merged branches are strong cleanup candidates; closed-but-unmerged and no-PR branches should be reviewed before deletion.</p>'
             '<div class="table-wrap"><table>'
             '<thead><tr><th>Repo</th><th>Branch</th><th>Pull request</th><th>Status</th><th>Closed</th></tr></thead>'
             f'<tbody>{"".join(cleanup_rows)}</tbody></table></div></section>'
@@ -680,7 +743,7 @@ def render_dashboard(
         </span>
         <span class="refresh-meta__item" title="Repository data is collected by the scheduled GitHub Actions workflow.">
           <span class="refresh-meta__label">Repository check</span>
-          <span class="refresh-meta__value">every 15 min</span>
+          <span class="refresh-meta__value">hourly at :11</span>
         </span>
         <span class="refresh-meta__item">
           <span class="refresh-meta__label">Page version checked</span>
