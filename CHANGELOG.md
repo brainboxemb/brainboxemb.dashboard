@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add 30-day Actions performance metrics from workflow run history, refreshed at most once per UTC day through a date-keyed cache; unchanged metrics do not force a Pages deployment.
 - Include non-default branches that have never had a pull request in **Branch cleanup**, while ignoring configured long-lived publication/output branches.
 - Keep `Last activity` relative through 99 days, show `>99d ago` beyond that, and show the exact date on hover without a time.
 - Read PR branch auto-delete settings through GitHub GraphQL and show `Unknown` instead of incorrectly reporting `Off` when the setting cannot be read.
