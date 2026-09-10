@@ -91,7 +91,33 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(states["feature/merged"], "merged")
         self.assertEqual(states["feature/closed"], "closed")
 
-    def test_branch_cleanup_ignores_deleted_and_fork_branches(self):
+    def test_branch_cleanup_includes_no_pr_and_ignores_active_or_persistent_branches(self):
+        branches = [
+            {"name": "main"},
+            {"name": "chore/orphan"},
+            {"name": "feature/active"},
+            {"name": "build"},
+        ]
+        open_pulls = [
+            {
+                "number": 12,
+                "head": {"ref": "feature/active", "repo": {"full_name": "brainboxemb/repo"}},
+            }
+        ]
+        candidates = dashboard.branch_cleanup_candidates(
+            "brainboxemb",
+            "repo",
+            "main",
+            branches,
+            [],
+            open_pulls,
+            {"build"},
+        )
+        self.assertEqual([item["branch"] for item in candidates], ["chore/orphan"])
+        self.assertEqual(candidates[0]["state"], "no-pr")
+        self.assertIsNone(candidates[0]["pr_number"])
+
+    def test_branch_cleanup_does_not_treat_fork_pr_as_local_pr(self):
         branches = [{"name": "main"}, {"name": "local"}]
         pulls = [
             {
@@ -109,10 +135,11 @@ class DashboardTests(unittest.TestCase):
                 "head": {"ref": "gone", "repo": {"full_name": "brainboxemb/repo"}},
             },
         ]
-        self.assertEqual(
-            dashboard.branch_cleanup_candidates("brainboxemb", "repo", "main", branches, pulls),
-            [],
+        candidates = dashboard.branch_cleanup_candidates(
+            "brainboxemb", "repo", "main", branches, pulls
         )
+        self.assertEqual([item["branch"] for item in candidates], ["local"])
+        self.assertEqual(candidates[0]["state"], "no-pr")
 
     def test_relative_time(self):
         now = dt.datetime(2026, 9, 9, 12, 0, tzinfo=dt.timezone.utc)
@@ -190,7 +217,7 @@ class DashboardTests(unittest.TestCase):
     def test_render_contains_repository_and_status(self):
         config = {"dashboard": {"title": "Test", "subtitle": "Status", "owner": "brainboxemb", "repository": "brainboxemb.dashboard", "refresh_workflow": "deploy-dashboard.yml"}}
         wf = dashboard.WorkflowStatus("Build", "build.yml", "completed", "failure", "https://run", "2026-09-09T10:00:00Z", "https://wf")
-        groups = [{"name": "Tools", "repositories": [{"name": "repo", "url": "https://repo", "branch": "main", "latest_tag": {"name": "v1.2.3", "url": "https://tag", "sha": "abc123"}, "open_pull_requests": [{"number": 42, "title": "Improve dashboard"}], "pulls_url": "https://repo/pulls", "delete_branch_on_merge": False, "settings_url": "https://repo/settings", "branch_cleanup": [{"branch": "feature/test", "branch_url": "https://repo/tree/feature/test", "pr_number": 41, "pr_title": "Old branch", "pr_url": "https://repo/pull/41", "state": "merged", "closed_at": "2026-09-08T10:00:00Z", "merged_at": "2026-09-08T09:50:00Z"}], "latest": "2026-09-09T10:00:00Z", "workflows": [wf]}]}]
+        groups = [{"name": "Tools", "repositories": [{"name": "repo", "url": "https://repo", "branch": "main", "latest_tag": {"name": "v1.2.3", "url": "https://tag", "sha": "abc123"}, "open_pull_requests": [{"number": 42, "title": "Improve dashboard"}], "pulls_url": "https://repo/pulls", "delete_branch_on_merge": False, "settings_url": "https://repo/settings", "branch_cleanup": [{"branch": "feature/test", "branch_url": "https://repo/tree/feature/test", "pr_number": 41, "pr_title": "Old branch", "pr_url": "https://repo/pull/41", "state": "merged", "closed_at": "2026-09-08T10:00:00Z", "merged_at": "2026-09-08T09:50:00Z"}, {"branch": "chore/orphan", "branch_url": "https://repo/tree/chore/orphan", "pr_number": None, "pr_title": "", "pr_url": None, "state": "no-pr", "closed_at": None, "merged_at": None}], "latest": "2026-09-09T10:00:00Z", "workflows": [wf]}]}]
         generated = dt.datetime(2026, 9, 9, 12, 0, tzinfo=dt.timezone.utc)
         out = dashboard.render_dashboard(config, groups, generated, "abc123")
         self.assertIn("repo", out)
@@ -201,7 +228,7 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("Dashboard updated", out)
         self.assertIn("Page version checked", out)
         self.assertIn("Repository check", out)
-        self.assertIn("every 15 min", out)
+        self.assertIn("hourly at :11", out)
         self.assertIn("refresh-meta__item", out)
         self.assertIn("Rebuild dashboard", out)
         self.assertIn("actions/workflows/deploy-dashboard.yml", out)
@@ -211,6 +238,9 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("Branch cleanup", out)
         self.assertIn("feature/test", out)
         self.assertIn("merged", out)
+        self.assertIn("chore/orphan", out)
+        self.assertIn("No pull request", out)
+        self.assertIn("cleanup-state--no-pr", out)
         self.assertIn("PR branch auto-delete", out)
         self.assertIn("Auto-delete off", out)
         self.assertIn(">Off</a>", out)
