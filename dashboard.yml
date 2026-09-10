@@ -21,6 +21,7 @@ dashboard:
     - dev/verification
     - gh-pages
   show_branch_auto_delete: true
+  action_metrics_days: 30
   stale_after_hours: 168
 
 groups:
