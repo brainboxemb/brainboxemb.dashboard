@@ -20,6 +20,14 @@
     }
   }
 
+  const repositoryCheckItem = [...document.querySelectorAll('.refresh-meta__item')]
+    .find((item) => item.querySelector('.refresh-meta__label')?.textContent.trim() === 'Repository check');
+  const repositoryCheckValue = repositoryCheckItem?.querySelector('.refresh-meta__value');
+  if (repositoryCheckValue) {
+    repositoryCheckValue.textContent = 'hourly at :11';
+    repositoryCheckValue.title = 'Scheduled for 11 minutes past every hour; GitHub may delay scheduled runs.';
+  }
+
   function relativeLabel(date, now = new Date()) {
     const seconds = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
     if (seconds < 60) return 'just now';
