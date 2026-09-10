@@ -1,6 +1,7 @@
 name: Deploy
 
-# Scheduled runs still collect data; Pages deploys only when the dashboard fingerprint changes.
+# Scheduled runs still collect current status; Pages deploys only when visible data changes.
+# Actions performance metrics are collected at most once per UTC day and cached separately.
 
 on:
   workflow_dispatch:
@@ -51,6 +52,47 @@ jobs:
         timeout-minutes: 2
         run: python -m unittest discover -s tests -v
 
+      - name: Select daily Actions metrics cache
+        id: metrics-day
+        shell: bash
+        run: echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore daily Actions metrics
+        id: metrics-cache
+        timeout-minutes: 2
+        uses: actions/cache/restore@v4
+        with:
+          path: site/action-metrics.json
+          key: dashboard-action-metrics-${{ steps.metrics-day.outputs.date }}
+          restore-keys: |
+            dashboard-action-metrics-
+
+      - name: Collect daily Actions metrics
+        id: metrics-collect
+        if: steps.metrics-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 5
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DASHBOARD_TOKEN: ${{ secrets.DASHBOARD_TOKEN }}
+        run: |
+          set -euo pipefail
+          python src/collect_action_metrics.py \
+            --config dashboard.yml \
+            --output site/action-metrics.json \
+            --changed-output .action-metrics-changed \
+            --valid-output .action-metrics-valid
+          echo "changed=$(cat .action-metrics-changed)" >> "$GITHUB_OUTPUT"
+          echo "valid=$(cat .action-metrics-valid)" >> "$GITHUB_OUTPUT"
+
+      - name: Save daily Actions metrics
+        if: steps.metrics-cache.outputs.cache-hit != 'true' && steps.metrics-collect.outputs.valid == 'true'
+        timeout-minutes: 2
+        uses: actions/cache/save@v4
+        with:
+          path: site/action-metrics.json
+          key: dashboard-action-metrics-${{ steps.metrics-day.outputs.date }}
+
       - name: Generate dashboard
         timeout-minutes: 5
         env:
@@ -69,18 +111,27 @@ jobs:
         shell: bash
         env:
           PAGES_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+          METRICS_CHANGED: ${{ steps.metrics-collect.outputs.changed }}
         run: |
           set -euo pipefail
 
           new_hash="$(tr -d '\r\n' < .dashboard-content-hash)"
           current_hash="$(
-            curl --fail --silent --show-error --location --max-time 20               "${PAGES_URL}?_check=${GITHUB_RUN_ID}" 2>/dev/null               | sed -n 's/.*name="dashboard-content-hash" content="\([^"]*\)".*/\1/p'               | head -n 1               || true
+            curl --fail --silent --show-error --location --max-time 20 \
+              "${PAGES_URL}?_check=${GITHUB_RUN_ID}" 2>/dev/null \
+              | sed -n 's/.*name="dashboard-content-hash" content="\([^"]*\)".*/\1/p' \
+              | head -n 1 \
+              || true
           )"
 
           echo "Current deployed hash: ${current_hash:-<none>}"
           echo "New dashboard hash    : $new_hash"
+          echo "Actions metrics changed: ${METRICS_CHANGED:-false}"
 
-          if [[ -n "$current_hash" && "$current_hash" == "$new_hash" ]]; then
+          if [[ "${METRICS_CHANGED:-false}" == "true" ]]; then
+            echo "Daily Actions metrics changed; GitHub Pages will be deployed."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif [[ -n "$current_hash" && "$current_hash" == "$new_hash" ]]; then
             echo "No dashboard-visible changes; skipping GitHub Pages deployment."
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
