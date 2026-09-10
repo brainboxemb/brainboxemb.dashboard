@@ -1,3 +1,7 @@
 .venv/
 __pycache__/
 *.pyc
+site/action-metrics.json
+.dashboard-content-hash
+.action-metrics-changed
+.action-metrics-valid
