@@ -19,6 +19,10 @@ dashboard:
     - verification
     - dev/build
     - dev/verification
+    - prod/build
+    - prod/verification
+    - rel/v0.0.1/build
+    - rel/v0.0.1/verification
     - gh-pages
   show_branch_auto_delete: true
   action_metrics_days: 30
