@@ -13,7 +13,7 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 - direct links to repositories and workflow runs;
 - latest Git tag per repository, linked to the tagged tree;
 - open pull request count per repository, linked to the repository's PR list;
-- branch cleanup candidates for closed pull requests whose source branch still exists;
+- branch cleanup candidates for closed pull requests whose source branch still exists, plus branches that have never had a pull request;
 - branch auto-delete setting (`delete_branch_on_merge`) per repository;
 - last activity per repository; relative activity timestamps update in the browser without rebuilding the static page;
 - summary counts for passing, failing, and running workflows;
@@ -50,6 +50,8 @@ Or with overrides:
 ```
 
 `include_workflows` and `exclude_workflows` accept a workflow path, filename, normalized filename stem, or GitHub workflow name. Reusable-only workflows are hidden by default with `dashboard.hide_reusable_only_workflows: true`; this can also be overridden per repository when a reusable workflow should intentionally be shown.
+
+Long-lived generated or publication branches can be excluded from **Branch cleanup** with `dashboard.branch_cleanup_ignore_branches`. The current configuration ignores `build`, `verification`, `dev/build`, `dev/verification`, and `gh-pages`. A repository entry can also add its own `branch_cleanup_ignore_branches` list.
 
 ## GitHub Pages setup
 
@@ -97,13 +99,14 @@ Open `site/index.html` in a browser after generation.
 
 ## Branch cleanup
 
-The dashboard scans non-default branches and closed pull requests. A branch is listed in **Branch cleanup** when:
+The dashboard scans non-default branches and pull requests. A branch is listed in **Branch cleanup** when either:
 
-- the branch still exists in the same repository;
-- its pull request is closed;
-- the branch is not the default branch.
+- the branch still exists after its pull request was closed; or
+- the branch still exists and no pull request has ever used that branch in the same repository.
 
-Merged PR branches are marked **merged** and are strong cleanup candidates. Branches from closed-but-unmerged PRs are marked **closed, not merged** and should be reviewed before deletion. The dashboard never deletes branches automatically; the PR link takes you to GitHub, where the branch can be removed after review.
+Branches with an open pull request are not cleanup candidates. The default branch and configured long-lived branches in `branch_cleanup_ignore_branches` are also excluded.
+
+Merged PR branches are marked **merged** and are strong cleanup candidates. Branches from closed-but-unmerged PRs are marked **closed, not merged**. Branches with no PR are marked **no pull request**. The latter two categories should be reviewed before deletion. The dashboard never deletes branches automatically.
 
 For future merged PRs, GitHub's repository setting **Automatically delete head branches** can also reduce this cleanup work.
 
