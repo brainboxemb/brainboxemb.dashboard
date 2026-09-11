@@ -100,7 +100,7 @@ jobs:
           DASHBOARD_TOKEN: ${{ secrets.DASHBOARD_TOKEN }}
           DASHBOARD_ADMIN_TOKEN: ${{ secrets.DASHBOARD_ADMIN_TOKEN }}
         run: >-
-          python src/generate_dashboard.py
+          python src/dashboard_entry.py
           --config dashboard.yml
           --output site/index.html
           --hash-output .dashboard-content-hash

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Treat `rel/*` branches as persistent release output branches in **Branch cleanup**, while keeping temporary `chore/...`, `temp-release-...` and `release-request/...` branches visible for review.
+- Show the most recent **Release** workflow run across all branches so short-lived `release-request/...` branches do not leave an older default-branch failure on the dashboard.
 - Add 30-day Actions performance metrics from workflow run history, refreshed at most once per UTC day through a date-keyed cache; unchanged metrics do not force a Pages deployment.
 - Include non-default branches that have never had a pull request in **Branch cleanup**, while ignoring configured long-lived publication/output branches.
 - Keep `Last activity` relative through 99 days, show `>99d ago` beyond that, and show the exact date on hover without a time.
