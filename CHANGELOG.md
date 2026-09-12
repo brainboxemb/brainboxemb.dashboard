@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `tool.java-project` to the **Tooling & libraries** dashboard group.
+- Show whether each repository's default branch is protected, with `Protected`, `Not protected`, or `Unknown` status.
 - Add a **Software projects** group and register `2026-010-01.meta.event-timing-software` as its first repository.
 - Treat `rel/*` branches as persistent release output branches in **Branch cleanup**, while keeping temporary `chore/...`, `temp-release-...` and `release-request/...` branches visible for review.
 - Show the most recent **Release** workflow run across all branches so short-lived `release-request/...` branches do not leave an older default-branch failure on the dashboard.
