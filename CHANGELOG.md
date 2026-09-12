@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add `tool.eng-docs` to **Tooling**.
 - Add `tool.git-project` to **Tooling**.
 - Add `2026-010-02.java.event-timing-framework` to **Software projects**.
 
