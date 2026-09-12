@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add `tool.git-project` to **Tooling**.
+- Add `2026-010-02.java.event-timing-framework` to **Software projects**.
+
 ## v0.2.0 - 2026-09-12
 
 - Detect default-branch protection from active GitHub branch rules plus classic branch protection, using `DASHBOARD_ADMIN_TOKEN` for the Administration-read check when available.
