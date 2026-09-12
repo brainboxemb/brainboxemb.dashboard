@@ -38,6 +38,7 @@ groups:
       - tool.scad-project
       - tool.java-project
       - tool.git-project
+      - tool.eng-docs
       - tech.scad
       - meta.scad-projects
 
