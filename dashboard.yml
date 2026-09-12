@@ -51,6 +51,10 @@ groups:
       - 2026-008-01.cad.bosch-table
       - 2026-009-01.cad.HUB75-display-frame
 
+  - name: Software projects
+    repositories:
+      - 2026-010-01.meta.event-timing-software
+
   - name: Sites & experiments
     repositories:
       - site.notes
