@@ -10,6 +10,7 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 - active GitHub Actions workflows discovered automatically;
 - reusable-only workflows (`workflow_call` without a normal trigger) hidden automatically;
 - status of the most recent run on each repository's default branch;
+- whether the default branch is protected;
 - direct links to repositories and workflow runs;
 - latest Git tag per repository, linked to the tagged tree;
 - open pull request count per repository, linked to the repository's PR list;
@@ -25,7 +26,7 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 - checks every minute for a newly deployed dashboard and reloads automatically when one is available;
 - manual refresh shortcut to the GitHub Actions workflow.
 
-Repositories without active workflows remain visible, but are collected in a separate **Repositories without Actions** section at the bottom. This keeps the main groups focused on repositories with workflow status while still giving a complete overview. The **Latest tag** column can be disabled with `dashboard.show_latest_tag: false`, the **Open PRs** column with `dashboard.show_open_pull_requests: false`, branch cleanup scanning with `dashboard.show_branch_cleanup: false`, and the **PR branch auto-delete** column with `dashboard.show_branch_auto_delete: false`.
+Repositories without active workflows remain visible, but are collected in a separate **Repositories without Actions** section at the bottom. This keeps the main groups focused on repositories with workflow status while still giving a complete overview. The **Latest tag** column can be disabled with `dashboard.show_latest_tag: false`, the **Open PRs** column with `dashboard.show_open_pull_requests: false`, the **Default branch protected** column with `dashboard.show_default_branch_protection: false`, branch cleanup scanning with `dashboard.show_branch_cleanup: false`, and the **PR branch auto-delete** column with `dashboard.show_branch_auto_delete: false`.
 
 ## Configuration
 
@@ -127,6 +128,14 @@ Merged PR branches are marked **merged** and are strong cleanup candidates. Bran
 For future merged PRs, GitHub's repository setting **Automatically delete head branches** can also reduce this cleanup work.
 
 ## Repository settings
+
+The **Default branch protected** column reads the `protected` state of each repository's configured/default branch:
+
+- **Protected** — the default branch is covered by GitHub branch protection or a ruleset that GitHub exposes as protected.
+- **Not protected** — GitHub reports the default branch as unprotected.
+- **Unknown** — the protection state could not be read reliably.
+
+The badge links to the repository's branch settings page. The protection state is observational; this dashboard does not change branch protection rules.
 
 The **PR branch auto-delete** column shows GitHub's `delete_branch_on_merge` repository setting:
 
