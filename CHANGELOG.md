@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add a **Software projects** group and register `2026-010-01.meta.event-timing-software` as its first repository.
 - Treat `rel/*` branches as persistent release output branches in **Branch cleanup**, while keeping temporary `chore/...`, `temp-release-...` and `release-request/...` branches visible for review.
 - Show the most recent **Release** workflow run across all branches so short-lived `release-request/...` branches do not leave an older default-branch failure on the dashboard.
 - Add 30-day Actions performance metrics from workflow run history, refreshed at most once per UTC day through a date-keyed cache; unchanged metrics do not force a Pages deployment.
