@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import os
 import pathlib
+import sys
 import urllib.parse
 from typing import Any
 
@@ -11,6 +13,7 @@ import generate_dashboard as dashboard
 # generic dashboard collector itself. The entry point installs these policies
 # before calling generate_dashboard.main().
 _base_branch_cleanup_candidates = dashboard.branch_cleanup_candidates
+_base_fetch_default_branch_protection = dashboard.fetch_default_branch_protection
 _base_fetch_latest_run = dashboard.fetch_latest_run
 
 
@@ -50,6 +53,71 @@ def branch_cleanup_candidates(
         for candidate in candidates
         if not str(candidate.get("branch") or "").startswith(prefixes)
     ]
+
+
+def fetch_default_branch_protection(
+    owner: str,
+    repo: str,
+    branch: str,
+    token: str | None,
+) -> bool | None:
+    """Resolve active rulesets and classic branch protection reliably.
+
+    GitHub's branch resource alone can under-report protection for the dashboard
+    token. The branch-rules endpoint is readable with Metadata permission and
+    returns only active rulesets. Classic branch protection requires
+    Administration read access, so use ``DASHBOARD_ADMIN_TOKEN`` when available.
+    The original branch-resource check remains a final compatibility fallback.
+    """
+    quoted_branch = urllib.parse.quote(branch, safe="")
+    active_rules_read = False
+
+    try:
+        active_rules = dashboard.request_json(
+            f"{dashboard.API}/repos/{owner}/{repo}/rules/branches/{quoted_branch}?per_page=100",
+            token,
+        )
+        if isinstance(active_rules, list):
+            active_rules_read = True
+            if active_rules:
+                return True
+    except Exception as exc:
+        print(
+            f"WARNING: could not read active branch rules for {owner}/{repo}:{branch}: {exc}",
+            file=sys.stderr,
+        )
+
+    admin_token = os.environ.get("DASHBOARD_ADMIN_TOKEN")
+    if admin_token:
+        try:
+            dashboard.request_json(
+                f"{dashboard.API}/repos/{owner}/{repo}/branches/{quoted_branch}/protection",
+                admin_token,
+            )
+            return True
+        except Exception as exc:
+            message = str(exc)
+            if "GitHub API 404" in message:
+                if active_rules_read:
+                    return False
+            elif "GitHub API 403" not in message:
+                print(
+                    f"WARNING: could not read classic branch protection for "
+                    f"{owner}/{repo}:{branch}: {exc}",
+                    file=sys.stderr,
+                )
+
+    fallback = _base_fetch_default_branch_protection(
+        owner,
+        repo,
+        branch,
+        token,
+    )
+    if fallback is True:
+        return True
+    if active_rules_read:
+        return False
+    return fallback
 
 
 def _is_release_run(run: dict[str, Any] | None) -> bool:
@@ -93,6 +161,7 @@ def fetch_latest_run(
 
 def install_policy() -> None:
     dashboard.branch_cleanup_candidates = branch_cleanup_candidates
+    dashboard.fetch_default_branch_protection = fetch_default_branch_protection
     dashboard.fetch_latest_run = fetch_latest_run
 
 
