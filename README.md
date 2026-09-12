@@ -129,20 +129,21 @@ For future merged PRs, GitHub's repository setting **Automatically delete head b
 
 ## Repository settings
 
-The **Default branch protected** column reads the `protected` state of each repository's configured/default branch:
+The **Default branch protected** column reads the `protected` state of each repository's configured/default branch. The compact indicator means:
 
-- **Protected** — the default branch is covered by GitHub branch protection or a ruleset that GitHub exposes as protected.
-- **Not protected** — GitHub reports the default branch as unprotected.
-- **Unknown** — the protection state could not be read reliably.
+- **✓** — the default branch is protected;
+- **✕** — GitHub reports the default branch as unprotected;
+- **–** — the protection state could not be read reliably.
 
-The badge links to the repository's branch settings page. The protection state is observational; this dashboard does not change branch protection rules.
+The indicator links to the repository's branch settings page and keeps the detailed state in its tooltip. The protection state is observational; this dashboard does not change branch protection rules. A configured ruleset with `enforcement: disabled` does not count as active protection.
 
-The **PR branch auto-delete** column shows GitHub's `delete_branch_on_merge` repository setting:
+The **PR branch auto-delete** column shows GitHub's `delete_branch_on_merge` repository setting with the same compact convention:
 
-- **On** — GitHub automatically deletes the PR head branch after a successful merge.
-- **Off** — merged PR branches remain until they are deleted manually.
+- **✓** — GitHub automatically deletes the PR head branch after a successful merge;
+- **✕** — merged PR branches remain until they are deleted manually;
+- **–** — the setting could not be read reliably.
 
-The badge links to the repository's Settings page.
+The indicator links to the repository's Settings page and keeps the detailed state in its tooltip.
 
 The dashboard also includes a **Repository settings** shortcut to the `Configure repository settings` workflow. This workflow can enable or disable automatic merged-branch deletion for one configured repository or for all configured repositories.
 
