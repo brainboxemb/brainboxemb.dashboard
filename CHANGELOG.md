@@ -4,6 +4,9 @@
 
 ## v0.2.0 - 2026-09-12
 
+- Detect default-branch protection from active GitHub branch rules plus classic branch protection, using `DASHBOARD_ADMIN_TOKEN` for the Administration-read check when available.
+- Stack the **Branch protected** and **PR auto-delete** table headers onto two lines so the settings columns remain compact.
+- Add a permanent self-cleaning `Release` workflow using `release-request/vX.Y.Z/<sha>` branches for interfaces that cannot dispatch workflows directly.
 - Split `lib.scad.clamps` and `lib.scad.hub75` into a dedicated **CAD libraries** group and rename **Tooling & libraries** to **Tooling**.
 - Use compact `✓` / `✕` / `–` indicators for both default-branch protection and PR branch auto-delete status.
 - Add `tool.java-project` to the **Tooling** dashboard group.

@@ -1,0 +1,110 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Immutable release tag, e.g. v0.2.0'
+        required: true
+        type: string
+      release_sha:
+        description: 'Exact already-verified commit SHA to tag'
+        required: true
+        type: string
+  push:
+    branches:
+      - 'release-request/**'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout release workflow ref with full history
+        timeout-minutes: 2
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and validate release request
+        id: release
+        timeout-minutes: 2
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_RELEASE_SHA: ${{ inputs.release_sha }}
+          REF_NAME: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${EVENT_NAME}" == "push" ]]; then
+            if [[ "${ACTOR}" != "${REPOSITORY_OWNER}" ]]; then
+              echo "ERROR: release-request branches may only be created by ${REPOSITORY_OWNER}" >&2
+              exit 1
+            fi
+
+            REQUEST="${REF_NAME#release-request/}"
+            IFS='/' read -r VERSION RELEASE_SHA EXTRA <<< "${REQUEST}"
+            if [[ "${REQUEST}" == "${REF_NAME}" || -z "${VERSION}" || -z "${RELEASE_SHA}" || -n "${EXTRA:-}" ]]; then
+              echo "ERROR: release request branch must be release-request/vX.Y.Z/<40-char-sha>" >&2
+              exit 1
+            fi
+          else
+            VERSION="${INPUT_VERSION}"
+            RELEASE_SHA="${INPUT_RELEASE_SHA}"
+          fi
+
+          if [[ ! "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: version must match vX.Y.Z" >&2
+            exit 1
+          fi
+          if [[ ! "${RELEASE_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "ERROR: release_sha must be an exact 40-character commit SHA" >&2
+            exit 1
+          fi
+
+          git fetch --tags --force origin
+          if ! git cat-file -e "${RELEASE_SHA}^{commit}" 2>/dev/null; then
+            echo "ERROR: release_sha is not a known commit: ${RELEASE_SHA}" >&2
+            exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null; then
+            echo "ERROR: release tag already exists: ${VERSION}" >&2
+            exit 1
+          fi
+          if ! git show "${RELEASE_SHA}:CHANGELOG.md" | grep -Fq "## ${VERSION} - "; then
+            echo "ERROR: CHANGELOG.md at ${RELEASE_SHA} has no ${VERSION} release heading" >&2
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_sha=${RELEASE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "Release request validated: ${VERSION} @ ${RELEASE_SHA}"
+
+      - name: Create annotated release tag
+        timeout-minutes: 2
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_SHA: ${{ steps.release.outputs.release_sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${VERSION}" "${RELEASE_SHA}" -m "brainboxemb.dashboard ${VERSION}"
+          git push origin "refs/tags/${VERSION}"
+
+      - name: Remove release request branch
+        if: ${{ always() && github.event_name == 'push' }}
+        timeout-minutes: 2
+        env:
+          REQUEST_BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git push origin --delete "${REQUEST_BRANCH}" || true

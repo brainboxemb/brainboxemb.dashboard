@@ -26,7 +26,7 @@ The dashboard is generated as a static site and published with GitHub Pages. It 
 - checks every minute for a newly deployed dashboard and reloads automatically when one is available;
 - manual refresh shortcut to the GitHub Actions workflow.
 
-Repositories without active workflows remain visible, but are collected in a separate **Repositories without Actions** section at the bottom. This keeps the main groups focused on repositories with workflow status while still giving a complete overview. The **Latest tag** column can be disabled with `dashboard.show_latest_tag: false`, the **Open PRs** column with `dashboard.show_open_pull_requests: false`, the **Default branch protected** column with `dashboard.show_default_branch_protection: false`, branch cleanup scanning with `dashboard.show_branch_cleanup: false`, and the **PR branch auto-delete** column with `dashboard.show_branch_auto_delete: false`.
+Repositories without active workflows remain visible, but are collected in a separate **Repositories without Actions** section at the bottom. This keeps the main groups focused on repositories with workflow status while still giving a complete overview. The **Latest tag** column can be disabled with `dashboard.show_latest_tag: false`, the **Open PRs** column with `dashboard.show_open_pull_requests: false`, the **Branch protected** column with `dashboard.show_default_branch_protection: false`, branch cleanup scanning with `dashboard.show_branch_cleanup: false`, and the **PR auto-delete** column with `dashboard.show_branch_auto_delete: false`.
 
 ## Configuration
 
@@ -102,10 +102,12 @@ Open `site/index.html` in a browser after generation.
 ```text
 .
 ├── .github/workflows/deploy-dashboard.yml
+├── .github/workflows/release.yml
 ├── dashboard.yml
 ├── requirements.txt
 ├── src/
 │   ├── collect_action_metrics.py
+│   ├── dashboard_entry.py
 │   └── generate_dashboard.py
 ├── site/
 │   ├── action-metrics.json   # generated/cached, not committed
@@ -129,15 +131,15 @@ For future merged PRs, GitHub's repository setting **Automatically delete head b
 
 ## Repository settings
 
-The **Default branch protected** column reads the `protected` state of each repository's configured/default branch. The compact indicator means:
+The **Branch protected** column reports whether the repository's configured/default branch is actively protected. The compact indicator means:
 
-- **✓** — the default branch is protected;
-- **✕** — GitHub reports the default branch as unprotected;
+- **✓** — active rules or classic branch protection apply to the default branch;
+- **✕** — GitHub confirms that no active rules or classic protection apply;
 - **–** — the protection state could not be read reliably.
 
-The indicator links to the repository's branch settings page and keeps the detailed state in its tooltip. The protection state is observational; this dashboard does not change branch protection rules. A configured ruleset with `enforcement: disabled` does not count as active protection.
+Protection detection first reads GitHub's effective active rules for the branch. That endpoint includes active rulesets and deliberately excludes rulesets whose enforcement is `disabled` or `evaluate`. When `DASHBOARD_ADMIN_TOKEN` is available, the dashboard also checks classic branch protection with Administration-read access. The normal branch resource remains a compatibility fallback. The indicator links to the repository's branch settings page and keeps the detailed state in its tooltip. The dashboard never creates, changes, or removes branch protection.
 
-The **PR branch auto-delete** column shows GitHub's `delete_branch_on_merge` repository setting with the same compact convention:
+The **PR auto-delete** column shows GitHub's `delete_branch_on_merge` repository setting with the same compact convention:
 
 - **✓** — GitHub automatically deletes the PR head branch after a successful merge;
 - **✕** — merged PR branches remain until they are deleted manually;
@@ -164,6 +166,18 @@ delete_branch_on_merge: true
 ```
 
 The settings workflow changes only the `delete_branch_on_merge` property.
+
+## Releases
+
+Releases follow the same permanent, self-cleaning request pattern used by `tool.scad-project`. `.github/workflows/release.yml` tags an exact, already-verified commit and refuses to overwrite an existing tag.
+
+When workflow dispatch is available, provide `version` and the exact 40-character `release_sha`. When the connected GitHub interface cannot dispatch a workflow directly, create a temporary branch with this exact form from the commit that should be tagged:
+
+```text
+release-request/vX.Y.Z/<40-character-release-sha>
+```
+
+The workflow validates the version, commit and matching CHANGELOG release heading, creates an annotated tag, then removes the temporary request branch. Existing release tags are immutable.
 
 ## Change-aware Pages deployment
 
