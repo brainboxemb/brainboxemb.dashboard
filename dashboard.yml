@@ -37,6 +37,7 @@ groups:
       - template.scad-project
       - tool.scad-project
       - tool.java-project
+      - tool.git-project
       - tech.scad
       - meta.scad-projects
 
@@ -59,6 +60,7 @@ groups:
   - name: Software projects
     repositories:
       - 2026-010-01.meta.event-timing-software
+      - 2026-010-02.java.event-timing-framework
 
   - name: Sites & experiments
     repositories:
