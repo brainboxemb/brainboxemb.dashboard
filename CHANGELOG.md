@@ -2,8 +2,9 @@
 
 ## Unreleased
 
+- Split `lib.scad.clamps` and `lib.scad.hub75` into a dedicated **CAD libraries** group and rename **Tooling & libraries** to **Tooling**.
 - Use compact `✓` / `✕` / `–` indicators for both default-branch protection and PR branch auto-delete status.
-- Add `tool.java-project` to the **Tooling & libraries** dashboard group.
+- Add `tool.java-project` to the **Tooling** dashboard group.
 - Show whether each repository's default branch is protected, with protected, unprotected, or unknown status.
 - Add a **Software projects** group and register `2026-010-01.meta.event-timing-software` as its first repository.
 - Treat `rel/*` branches as persistent release output branches in **Branch cleanup**, while keeping temporary `chore/...`, `temp-release-...` and `release-request/...` branches visible for review.

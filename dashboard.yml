@@ -29,7 +29,7 @@ dashboard:
   stale_after_hours: 168
 
 groups:
-  - name: Tooling & libraries
+  - name: Tooling
     repositories:
       - brainboxemb.github.actions
       - docker.scad-toolchain
@@ -38,9 +38,12 @@ groups:
       - tool.scad-project
       - tool.java-project
       - tech.scad
+      - meta.scad-projects
+
+  - name: CAD libraries
+    repositories:
       - lib.scad.clamps
       - lib.scad.hub75
-      - meta.scad-projects
 
   - name: CAD projects
     repositories:
