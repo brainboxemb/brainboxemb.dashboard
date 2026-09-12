@@ -157,6 +157,18 @@ def friendly_workflow_name(path: str, name: str, labels: dict[str, str]) -> str:
 def fetch_repository(owner: str, repo: str, token: str | None) -> dict[str, Any]:
     return request_json(f"{API}/repos/{owner}/{repo}", token)
 
+def fetch_default_branch_protection(
+    owner: str,
+    repo: str,
+    branch: str,
+    token: str | None,
+) -> bool | None:
+    quoted_branch = urllib.parse.quote(branch, safe="")
+    data = request_json(f"{API}/repos/{owner}/{repo}/branches/{quoted_branch}", token)
+    if "protected" not in data:
+        return None
+    return bool(data["protected"])
+
 def fetch_latest_tag(owner: str, repo: str, token: str | None) -> dict[str, str] | None:
     tags = request_json(f"{API}/repos/{owner}/{repo}/tags?per_page=1", token)
     if not tags:
@@ -352,6 +364,18 @@ def collect_repository(
     if delete_branch_on_merge is None and "delete_branch_on_merge" in meta:
         delete_branch_on_merge = bool(meta["delete_branch_on_merge"])
     branch = entry.get("branch") or meta.get("default_branch") or "main"
+    default_branch_protected: bool | None = None
+    if config["dashboard"].get("show_default_branch_protection", True):
+        try:
+            default_branch_protected = fetch_default_branch_protection(
+                owner, repo, branch, token
+            )
+        except Exception as exc:
+            print(
+                f"WARNING: could not read default branch protection for "
+                f"{owner}/{repo}:{branch}: {exc}",
+                file=sys.stderr,
+            )
     latest_tag = fetch_latest_tag(owner, repo, token)
     open_pull_requests = fetch_open_pull_requests(owner, repo, token)
     show_branch_cleanup = bool(config["dashboard"].get("show_branch_cleanup", True))
@@ -431,6 +455,8 @@ def collect_repository(
         "name": repo,
         "url": meta.get("html_url") or f"https://github.com/{owner}/{repo}",
         "branch": branch,
+        "default_branch_protected": default_branch_protected,
+        "branch_settings_url": f"https://github.com/{owner}/{repo}/settings/branches",
         "latest_tag": latest_tag,
         "open_pull_requests": open_pull_requests,
         "pulls_url": f"https://github.com/{owner}/{repo}/pulls",
@@ -452,6 +478,8 @@ def dashboard_state(config: dict[str, Any], groups: list[dict[str, Any]]) -> dic
                 "name": repo["name"],
                 "url": repo["url"],
                 "branch": repo["branch"],
+                "default_branch_protected": repo.get("default_branch_protected"),
+                "branch_settings_url": repo.get("branch_settings_url"),
                 "latest_tag": repo.get("latest_tag"),
                 "open_pull_requests": [
                     {
@@ -583,6 +611,7 @@ def render_dashboard(
     show_latest_tag = bool(dcfg.get("show_latest_tag", True))
     show_open_pull_requests = bool(dcfg.get("show_open_pull_requests", True))
     show_branch_auto_delete = bool(dcfg.get("show_branch_auto_delete", True))
+    show_default_branch_protection = bool(dcfg.get("show_default_branch_protection", True))
     sections = []
     for group in groups:
         rows = []
@@ -606,6 +635,22 @@ def render_dashboard(
                 f'{pull_count} open</a>'
                 if pull_count else '<span class="empty">—</span>'
             )
+            protection_value = repo.get("default_branch_protected")
+            if protection_value is True:
+                protection_label = "Protected"
+                protection_class = "on"
+            elif protection_value is False:
+                protection_label = "Not protected"
+                protection_class = "off"
+            else:
+                protection_label = "Unknown"
+                protection_class = "unknown"
+            protection_html = (
+                f'<a class="setting-badge setting-badge--{protection_class}" '
+                f'href="{esc(repo.get("branch_settings_url", repo["url"] + "/settings/branches"))}" '
+                f'title="Default branch {repo["branch"]}: {protection_label}" '
+                f'target="_blank" rel="noopener">{protection_label}</a>'
+            )
             auto_delete_value = repo.get("delete_branch_on_merge")
             if auto_delete_value is True:
                 auto_delete_label = "On"
@@ -628,6 +673,7 @@ def render_dashboard(
             search_parts.extend(
                 f'pr {pull.get("number")} {pull.get("title", "")}' for pull in pulls
             )
+            search_parts.append(f'default branch protection {protection_label.lower()}')
             search_parts.append(f'auto delete branch {auto_delete_label.lower()}')
             search_text = " ".join(search_parts).lower()
             rows.append(
@@ -635,6 +681,7 @@ def render_dashboard(
                 f'<td class="repo-cell"><a href="{esc(repo["url"])}" target="_blank" rel="noopener">{esc(repo["name"])}</a><div class="repo-meta">{esc(repo["branch"])}</div></td>'
                 + (f'<td class="tag-cell">{tag_html}</td>' if show_latest_tag else '')
                 + (f'<td class="pr-cell">{pr_html}</td>' if show_open_pull_requests else '')
+                + (f'<td class="setting-cell">{protection_html}</td>' if show_default_branch_protection else '')
                 + (f'<td class="setting-cell">{auto_delete_html}</td>' if show_branch_auto_delete else '')
                 + f'<td class="actions-cell">{workflow_html}</td>'
                 + (
@@ -649,6 +696,7 @@ def render_dashboard(
             '<thead><tr><th>Repo</th>'
             + ('<th>Latest tag</th>' if show_latest_tag else '')
             + ('<th>Open PRs</th>' if show_open_pull_requests else '')
+            + ('<th title="Whether the repository default branch is protected">Default branch protected</th>' if show_default_branch_protection else '')
             + ('<th title="Automatically delete head branches after merge">PR branch auto-delete</th>' if show_branch_auto_delete else '')
             + '<th>Actions</th><th>Last activity</th></tr></thead>'
             f'<tbody>{"".join(rows)}</tbody></table></div></section>'
