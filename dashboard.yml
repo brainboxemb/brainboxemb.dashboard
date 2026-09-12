@@ -24,6 +24,7 @@ dashboard:
     - rel/*
     - gh-pages
   show_branch_auto_delete: true
+  show_default_branch_protection: true
   action_metrics_days: 30
   stale_after_hours: 168
 
@@ -35,6 +36,7 @@ groups:
       - docker.scad-toolchain.test
       - template.scad-project
       - tool.scad-project
+      - tool.java-project
       - tech.scad
       - lib.scad.clamps
       - lib.scad.hub75

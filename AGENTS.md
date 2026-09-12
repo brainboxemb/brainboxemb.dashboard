@@ -26,14 +26,14 @@ Use the owning systems as the authoritative source instead of duplicating changi
 dashboard.yml                    monitored repositories and dashboard policy
 GitHub repository metadata       repository/default-branch/settings state
 GitHub Actions API               workflow/run state and historical metrics
-GitHub pull requests/branches    PR and cleanup state
+GitHub pull requests/branches    PR, protection and cleanup state
 src/generate_dashboard.py        rendering and current-status collection logic
 src/collect_action_metrics.py    historical Actions metrics collection
 site/app.js                      browser-side freshness/relative-time behaviour
 .github/workflows/               dashboard scheduling/deployment/settings automation
 ```
 
-Do not hard-code current workflow results, release versions, branch lists, or repository settings into documentation or source when they can be read from GitHub.
+Do not hard-code current workflow results, release versions, branch lists, branch protection state, or repository settings into documentation or source when they can be read from GitHub.
 
 ## Workflow status semantics
 
@@ -75,11 +75,13 @@ Branches such as `chore/*`, `temp-release-*`, `release-request/*`, and other unr
 
 The `PR branch auto-delete` status comes from GitHub's `delete_branch_on_merge` repository setting.
 
-Do not interpret an unreadable/missing value as `Off`. Preserve the three-state distinction:
+The `Default branch protected` status comes from the GitHub branch resource for the configured/default branch. Treat this as observational state: the dashboard must not create, modify, or remove branch protection or rulesets.
+
+For both settings, do not interpret an unreadable/missing value as an explicit negative state. Preserve the three-state distinction:
 
 ```text
-true    -> On
-false   -> Off
+true    -> enabled/protected
+false   -> disabled/not protected
 unknown -> Unknown
 ```
 
