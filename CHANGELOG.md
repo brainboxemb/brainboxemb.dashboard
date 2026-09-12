@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.2.0 - 2026-09-12
+
 - Split `lib.scad.clamps` and `lib.scad.hub75` into a dedicated **CAD libraries** group and rename **Tooling & libraries** to **Tooling**.
 - Use compact `✓` / `✕` / `–` indicators for both default-branch protection and PR branch auto-delete status.
 - Add `tool.java-project` to the **Tooling** dashboard group.
