@@ -25,12 +25,16 @@ Use the owning systems as the authoritative source instead of duplicating changi
 ```text
 dashboard.yml                    monitored repositories and dashboard policy
 GitHub repository metadata       repository/default-branch/settings state
+GitHub active branch rules       enabled rulesets affecting a branch
+GitHub classic branch protection classic protected-branch state
 GitHub Actions API               workflow/run state and historical metrics
-GitHub pull requests/branches    PR, protection and cleanup state
-src/generate_dashboard.py        rendering and current-status collection logic
+GitHub pull requests/branches    PR and cleanup state
+src/generate_dashboard.py        rendering and generic current-status collection logic
+src/dashboard_entry.py           brainboxemb-specific collection/status policy
 src/collect_action_metrics.py    historical Actions metrics collection
 site/app.js                      browser-side freshness/relative-time behaviour
-.github/workflows/               dashboard scheduling/deployment/settings automation
+.github/workflows/               dashboard scheduling/deployment/settings/release automation
+CHANGELOG.md                     release history
 ```
 
 Do not hard-code current workflow results, release versions, branch lists, branch protection state, or repository settings into documentation or source when they can be read from GitHub.
@@ -73,11 +77,17 @@ Branches such as `chore/*`, `temp-release-*`, `release-request/*`, and other unr
 
 ## Repository settings
 
-The `PR branch auto-delete` status comes from GitHub's `delete_branch_on_merge` repository setting.
+The `PR auto-delete` status comes from GitHub's `delete_branch_on_merge` repository setting.
 
-The `Default branch protected` status comes from the GitHub branch resource for the configured/default branch. Treat this as observational state: the dashboard must not create, modify, or remove branch protection or rulesets.
+The `Branch protected` status is the effective protection state of the configured/default branch. Resolve it in this order:
 
-For both settings, do not interpret an unreadable/missing value as an explicit negative state. Preserve the three-state distinction:
+1. GitHub's branch-rules endpoint (`/rules/branches/{branch}`), which returns only active rulesets and needs only Metadata read permission;
+2. classic branch protection (`/branches/{branch}/protection`) using `DASHBOARD_ADMIN_TOKEN` when available because that endpoint needs Administration read permission;
+3. the normal branch resource as a compatibility fallback.
+
+A ruleset with `disabled` or `evaluate` enforcement is not active protection. The dashboard is observational only: it must never create, modify, enable, disable, or remove branch protection/rulesets.
+
+For both repository settings, do not interpret an unreadable/missing value as an explicit negative state. Preserve the three-state distinction:
 
 ```text
 true    -> enabled/protected
@@ -116,6 +126,18 @@ Keep data collection separate from Pages publication.
 The generator computes a SHA-256 fingerprint over dashboard-visible state and relevant renderer/static inputs. The generation timestamp is deliberately excluded. If the candidate fingerprint matches the deployed fingerprint and daily metrics did not change, skip Pages configuration, artifact upload, and deployment.
 
 Preserve the safe failure mode: if the deployed fingerprint cannot be read, allow deployment rather than assuming the page is current.
+
+## Release workflow
+
+Use the permanent `.github/workflows/release.yml` workflow. A release tags an exact, already-verified commit and requires a matching `CHANGELOG.md` release heading.
+
+Where the connected GitHub interface cannot invoke workflow dispatch directly, use the self-cleaning release-request mechanism rather than one-shot workflow files or permanent helper branches:
+
+```text
+release-request/vX.Y.Z/<40-character-release-sha>
+```
+
+Create that branch from the exact release commit. The workflow validates the request, creates an annotated immutable tag, and removes the request branch. Never overwrite an existing release tag.
 
 ## Development and tests
 
